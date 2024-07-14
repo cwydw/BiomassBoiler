@@ -145,15 +145,20 @@
 
     model Model4
       import BiomassBoiler.Components.BedCombustion;
-      BedCombustion bedCombustion(n=4,tao=24,T(start=293.15))
+      BedCombustion bedCombustion(n=4,
+        tao=24,
+        T(start=293.15))
         annotation (Placement(transformation(origin = {-80.000000, 10.000000}, extent = {{-10.000000, -10.000000}, {10.000000, 10.000000}})));
-      BedCombustion bedCombustion1(n=4,tao=24,T(start=293.15))
+      BedCombustion bedCombustion1(n=4,
+        tao=24,
+        T(start=293.15))
         annotation (Placement(transformation(origin={-36,10},
     extent={{-10,-10},{10,10}})));
       Modelica.Blocks.Sources.Constant const(k=2.2075)
         annotation (Placement(transformation(origin={-184,28},
     extent={{-10,-10},{10,10}})));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T(displayUnit="degC")=393.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T(
+            displayUnit="degC") = 373.15)
         annotation (Placement(transformation(origin={-80,106},
     extent={{-10,-10},{10,10}},
     rotation=-90)));
@@ -162,7 +167,8 @@
         variable_T=false,
         variable_components=false) annotation (Placement(transformation(origin=
                 {-122,10}, extent={{-10,-10},{10,10}})));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature1(T(displayUnit="degC")=423.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature1(T(
+            displayUnit="degC") = 473.15)
         annotation (Placement(transformation(origin={-36,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -178,7 +184,8 @@
         annotation (Placement(transformation(origin={8,58},
     extent={{-10,-10},{10,10}},
     rotation=90)));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature2(T(displayUnit="degC")=453.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature2(T(
+            displayUnit="degC") = 573.15)
         annotation (Placement(transformation(origin={8,106},
     extent={{10,-10},{-10,10}},
     rotation=90)));
@@ -190,7 +197,8 @@
         annotation (Placement(transformation(origin={52,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature3(T(displayUnit="degC")=483.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature3(T(
+            displayUnit="degC") = 673.15)
         annotation (Placement(transformation(origin={52,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -201,7 +209,8 @@
         annotation (Placement(transformation(origin={96,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature4(T(displayUnit="degC")=513.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature4(T(
+            displayUnit="degC") = 773.15)
         annotation (Placement(transformation(origin={96,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -212,7 +221,8 @@
         annotation (Placement(transformation(origin={140,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature5(T(displayUnit="degC")=543.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature5(T(
+            displayUnit="degC") = 873.15)
         annotation (Placement(transformation(origin={140,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -223,7 +233,8 @@
         annotation (Placement(transformation(origin={184,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature6(T(displayUnit="degC")=573.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature6(T(
+            displayUnit="degC") = 973.15)
         annotation (Placement(transformation(origin={184,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -234,7 +245,8 @@
         annotation (Placement(transformation(origin={228,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature7(T(displayUnit="degC")=603.15)
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature7(T(
+            displayUnit="degC") = 1073.15)
         annotation (Placement(transformation(origin={228,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -246,7 +258,7 @@
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
       Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature8(T(
-            displayUnit="degC") = 873.15)
+            displayUnit="degC") = 1173.15)
         annotation (Placement(transformation(origin={272,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -258,7 +270,7 @@
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
       Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature9(T(
-            displayUnit="degC") = 973.15)
+            displayUnit="degC") = 1273.15)
         annotation (Placement(transformation(origin={316,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -482,6 +494,68 @@
           __Dymola_NumberOfIntervals=1000,
           __Dymola_Algorithm="Dassl"));
     end Model4;
+
+    model DynamicFuelBed
+      parameter Real initialHeight = 1.0 "Initial height of the fuel bed [m]";
+      parameter Integer n = 10 "Number of discretization points";
+      parameter Real k = 0.5 "Thermal conductivity [W/(m·K)]";
+      parameter Real burnRate = 0.01 "Burn rate of the fuel bed [m/s]";
+
+      Real height "Current height of the fuel bed [m]";
+      Real T[n] "Temperature at discretization points [K]";
+      Real dTdz[n] "Temperature gradient at discretization points [K/m]";
+      Real z[n] "Height positions [m]";
+
+    initial algorithm
+      height := initialHeight;
+      for i in 1:n loop
+        z[i] := (i - 1) * height / (n - 1);
+      end for;
+
+    equation
+      // Update height based on burn rate
+      der(height) = -burnRate;
+
+      // Recalculate height positions based on current height
+      for i in 1:n loop
+        z[i] = (i - 1) * height / (n - 1);
+      end for;
+
+      // Boundary conditions (example: fixed temperatures at top and bottom)
+      T[1] = 1000; // Top of the bed
+      T[n] = 300;  // Bottom of the bed
+
+      // Discretized heat conduction equation
+      for i in 2:n-1 loop
+        T[i] = T[i-1] + (T[i+1] - T[i-1]) / 2;
+      end for;
+
+      // Calculate temperature gradient
+      for i in 2:n loop
+        dTdz[i] = (T[i] - T[i-1]) / (z[i] - z[i-1]);
+      end for;
+
+      annotation (uses(Modelica(version="4.0.0")));
+    end DynamicFuelBed;
+
+    model A
+      Real x;
+      Real y;
+
+      function f1
+        input Real a;
+        output Real b;
+      algorithm
+        b := cos(a);
+      end f1;
+
+      function der_f1 = der(f1, a);
+
+    equation
+      x = Modelica.Constants.pi / 2;
+      y = der_f1(x);
+      annotation (experiment(Interval=1, __Dymola_Algorithm="Dassl"));
+    end A;
   end Test;
 
   package Components
@@ -543,11 +617,7 @@
     end BedCombustion1;
 
     model BedCombustion
-      //import BiomassBoiler.Components.MassFlow.Interfaces;
-      import Modelica.Units.SI.MassFlowRate;
-      import Modelica.Units.SI.Mass;
-      import Modelica.Units.SI.HeatCapacity;
-      import Modelica.Units.SI.HeatFlowRate;
+      import Modelica.Units.SI.*;
       import Modelica.Blocks.Interfaces;
       import BiomassBoiler.Functions.ArrheniusEquation;
       import BiomassBoiler.Basics.Interfaces.Fuel_inlet;
@@ -555,9 +625,12 @@
       extends BiomassBoiler.Components.HeatCapacitor;
       extends Modelica.Blocks.Icons.Block;
 
-      parameter Real tao = 180 "停留时间";
+      parameter Length width = 3.7 "炉排宽度";
+      parameter Velocity v = 15 "炉排速度";
+      parameter Real tao = 24 "停留时间";
       parameter Real cp = 2695 "燃料比热容";
-      parameter Mass m_0 = 10 "初始燃料质量";
+      parameter Mass m_0 = 1 "初始燃料质量";
+      parameter Integer n_height = 10 "床层离散数量";
       BiomassBoiler.Basics.Interfaces.Fuel_inlet fuel_in annotation (Placement(transformation(origin={-110,0},
     extent={{-10,-10},{10,10}})));
       BiomassBoiler.Basics.Interfaces.Fuel_outlet fuel_out annotation (Placement(
@@ -565,6 +638,7 @@
       parameter Integer n = 4 "Number of input、output";
       Mass m_sj[n](start = {0.149, 0.6797, 0.1423, 0.029} * m_0) "区域各种组分质量，水分、挥发分、固定碳、灰分";
       Mass m "体积内物质总质量";
+      Height bedHeight "床层高度";
 
       HeatFlowRate Q_fuel_h "进入燃料吸热";
       HeatFlowRate Q_evp "水蒸发吸热";
@@ -614,7 +688,8 @@
 
       // 能量平衡
       C = cp * m "热容计算J/K";
-      Q_fuel_h = cp * fuel_in.m_flow * (fuel_in.T - T) / tao;
+      //Q_fuel_h = cp * fuel_in.m_flow * (fuel_in.T - T) / tao;
+      Q_fuel_h = 0;
       Q_evp = -R_evp * LHW;
       C * der(T) = Q_fuel_h + port_a.Q_flow + port_b.Q_flow + Q_evp;
 
@@ -625,8 +700,10 @@
     //   end if;
 
 
-      // 总质量、进出量
+      // 总质量、床层高度
       m = sum(m_sj);
+      bedHeight = m / (width * (tao * v / 3600)) / 500;
+
     end BedCombustion;
 
     model HeatCapacitor "Lumped thermal element storing heat"
@@ -839,6 +916,101 @@ Typical values for cp at 20 degC in J/(kg.K):
       extent={{-100,100},{100,-100}})}));
       end FuelSource;
     end BoundaryConditions;
+
+    model BedUnits
+      import BiomassBoiler.Components.HeatCapacitorWithTwoPort;
+
+      HeatCapacitorWithTwoPort heatCapacitor[10];
+    equation
+
+    end BedUnits;
+
+    model HeatCapacitorWithTwoPort
+      Modelica.Units.SI.HeatCapacity C "Heat capacity of element (= cp*m)";
+      Modelica.Units.SI.Temperature T(start=293.15, displayUnit="degC")
+        "Temperature of element";
+      Modelica.Units.SI.TemperatureSlope der_T(start=0)
+        "Time derivative of temperature (= der(T))";
+      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a annotation (
+          Placement(transformation(
+            origin={0,-100},
+            extent={{-10,-10},{10,10}},
+            rotation=90)));
+      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_b annotation (
+          Placement(transformation(origin={0,100}, extent={{-10,-10},{10,10}})));
+    equation
+      T = port_a.T;
+      der_T = der(T);
+      C*der(T) = port_a.Q_flow + port_b.Q_flow;
+      port_b.T = T;
+      annotation (Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},
+                {100,100}}), graphics={
+            Text(
+              extent={{-150,110},{150,70}},
+              textString="%name",
+              lineColor={0,0,255}),
+            Polygon(
+              points={{0,67},{-20,63},{-40,57},{-52,43},{-58,35},{-68,25},{-72,13},{
+                  -76,-1},{-78,-15},{-76,-31},{-76,-43},{-76,-53},{-70,-65},{-64,-73},
+                  {-48,-77},{-30,-83},{-18,-83},{-2,-85},{8,-89},{22,-89},{32,-87},{
+                  42,-81},{54,-75},{56,-73},{66,-61},{68,-53},{70,-51},{72,-35},{76,
+                  -21},{78,-13},{78,3},{74,15},{66,25},{54,33},{44,41},{36,57},{26,65},
+                  {0,67}},
+              lineColor={160,160,164},
+              fillColor={192,192,192},
+              fillPattern=FillPattern.Solid),
+            Polygon(
+              points={{-58,35},{-68,25},{-72,13},{-76,-1},{-78,-15},{-76,-31},{-76,-43},
+                  {-76,-53},{-70,-65},{-64,-73},{-48,-77},{-30,-83},{-18,-83},{-2,-85},
+                  {8,-89},{22,-89},{32,-87},{42,-81},{54,-75},{42,-77},{40,-77},{30,
+                  -79},{20,-81},{18,-81},{10,-81},{2,-77},{-12,-73},{-22,-73},{-30,-71},
+                  {-40,-65},{-50,-55},{-56,-43},{-58,-35},{-58,-25},{-60,-13},{-60,-5},
+                  {-60,7},{-58,17},{-56,19},{-52,27},{-48,35},{-44,45},{-40,57},{-58,
+                  35}},
+              fillColor={160,160,164},
+              fillPattern=FillPattern.Solid),
+            Text(extent={{-69,7},{71,-24}}, textString="%C")}), Diagram(
+            coordinateSystem(
+            extent={{-100,-100},{100,100}},
+            preserveAspectRatio=true,
+            grid={2,2}), graphics={
+            Polygon(
+              origin={0,-11},
+              lineColor={160,160,164},
+              fillColor={192,192,192},
+              fillPattern=FillPattern.Solid,
+              points={{0,78},{-20,74},{-40,68},{-52,54},{-58,46},{-68,36},{-72,24},{
+                  -76,10},{-78,-4},{-76,-20},{-76,-32},{-76,-42},{-70,-54},{-64,-62},
+                  {-48,-66},{-30,-72},{-18,-72},{-2,-74},{8,-78},{22,-78},{32,-76},{
+                  42,-70},{54,-64},{56,-62},{66,-50},{68,-42},{70,-40},{72,-24},{76,
+                  -10},{78,-2},{78,14},{74,26},{66,36},{54,44},{44,52},{36,68},{26,76},
+                  {0,78}}),
+            Polygon(
+              origin={-12,-16},
+              fillColor={160,160,164},
+              fillPattern=FillPattern.Solid,
+              points={{-46,51},{-56,41},{-60,29},{-64,15},{-66,1},{-64,-15},{-64,-27},
+                  {-64,-37},{-58,-49},{-52,-57},{-36,-61},{-18,-67},{-6,-67},{10,-69},
+                  {20,-73},{34,-73},{44,-71},{54,-65},{66,-59},{54,-61},{52,-61},{42,
+                  -63},{32,-65},{30,-65},{22,-65},{14,-61},{0,-57},{-10,-57},{-18,-55},
+                  {-28,-49},{-38,-39},{-44,-27},{-46,-19},{-46,-9},{-48,3},{-48,11},
+                  {-48,23},{-46,33},{-44,35},{-40,43},{-36,51},{-32,61},{-28,73},{-46,
+                  51}}),
+            Ellipse(
+              origin={0,-6.5},
+              lineColor={255,0,0},
+              fillColor={191,0,0},
+              fillPattern=FillPattern.Solid,
+              extent={{-6,5.5},{6,-5.5}}),
+            Text(
+              origin={30.5,-6},
+              extent={{-19.5,19},{19.5,-19}},
+              textString="T"),
+            Line(
+              origin={0,-54},
+              points={{0,42},{0,-42}},
+              color={255,0,0})}));
+    end HeatCapacitorWithTwoPort;
   end Components;
   annotation (uses(Modelica(version="4.0.0")));
 end BiomassBoiler;
