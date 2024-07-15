@@ -496,46 +496,35 @@
     end Model4;
 
     model DynamicFuelBed
-      parameter Real initialHeight = 1.0 "Initial height of the fuel bed [m]";
-      parameter Integer n = 10 "Number of discretization points";
-      parameter Real k = 0.5 "Thermal conductivity [W/(m·K)]";
-      parameter Real burnRate = 0.01 "Burn rate of the fuel bed [m/s]";
 
-      Real height "Current height of the fuel bed [m]";
-      Real T[n] "Temperature at discretization points [K]";
-      Real dTdz[n] "Temperature gradient at discretization points [K/m]";
-      Real z[n] "Height positions [m]";
-
-    initial algorithm
-      height := initialHeight;
-      for i in 1:n loop
-        z[i] := (i - 1) * height / (n - 1);
-      end for;
-
+      Components.BedCombustion bedCombustion
+        annotation (Placement(transformation(extent={{-74,-28},{-54,-8}})));
+      Components.BoundaryConditions.FuelSource               fuelSource(
+        variable_m_flow=true,
+        variable_T=false,
+        variable_components=false) annotation (Placement(transformation(origin={-112,-18},
+                           extent={{-10,-10},{10,10}})));
+      Modelica.Blocks.Sources.Constant const(k=2.2075)
+        annotation (Placement(transformation(origin={-162,-16},
+    extent={{-10,-10},{10,10}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1(Gr=4.44)
+        annotation (Placement(transformation(origin={-64,20},
+    extent={{-10,-10},{10,10}},
+    rotation=90)),__MWORKS(BlockSystem(StateMachine)));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T(
+            displayUnit="degC") = 373.15)
+        annotation (Placement(transformation(origin={-64,66},
+    extent={{-10,-10},{10,10}},
+    rotation=-90)));
     equation
-      // Update height based on burn rate
-      der(height) = -burnRate;
-
-      // Recalculate height positions based on current height
-      for i in 1:n loop
-        z[i] = (i - 1) * height / (n - 1);
-      end for;
-
-      // Boundary conditions (example: fixed temperatures at top and bottom)
-      T[1] = 1000; // Top of the bed
-      T[n] = 300;  // Bottom of the bed
-
-      // Discretized heat conduction equation
-      for i in 2:n-1 loop
-        T[i] = T[i-1] + (T[i+1] - T[i-1]) / 2;
-      end for;
-
-      // Calculate temperature gradient
-      for i in 2:n loop
-        dTdz[i] = (T[i] - T[i-1]) / (z[i] - z[i-1]);
-      end for;
-
-      annotation (uses(Modelica(version="4.0.0")));
+      connect(fuelSource.fuel_outlet, bedCombustion.fuel_in)
+        annotation (Line(points={{-102,-18},{-75,-18}}, color={0,0,0}));
+      connect(const.y, fuelSource.m_flow) annotation (Line(points={{-151,-16},{
+              -137,-16},{-137,-12},{-122,-12}}, color={0,0,127}));
+      connect(fixedTemperature.port, bodyRadiation1.port_b)
+        annotation (Line(points={{-64,56},{-64,30}}, color={191,0,0}));
+      connect(bodyRadiation1.port_a, bedCombustion.port_b)
+        annotation (Line(points={{-64,10},{-64,-8}}, color={191,0,0}));
     end DynamicFuelBed;
 
     model A
@@ -556,6 +545,39 @@
       y = der_f1(x);
       annotation (experiment(Interval=1, __Dymola_Algorithm="Dassl"));
     end A;
+
+    model Unnamed
+      Components.BedCombustion bedCombustion(m_0=10)
+        annotation (Placement(transformation(extent={{-44,24},{-24,44}})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T=423.15)
+        annotation (Placement(transformation(extent={{-142,28},{-122,48}})));
+      Components.BoundaryConditions.FuelSource               fuelSource(
+        variable_m_flow=true,
+        variable_T=false,
+        variable_components=false) annotation (Placement(transformation(origin={-106,-4},
+                           extent={{-10,-10},{10,10}})));
+      Modelica.Blocks.Sources.Constant const(k=2.2075)
+        annotation (Placement(transformation(origin={-168,14},
+    extent={{-10,-10},{10,10}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation(Gr=
+            4.44)
+        annotation (Placement(transformation(extent={{-96,28},{-76,48}})));
+    equation
+    //   bedCombustion.C = heatCapacitorWithTwoPort.C;
+    //   bedCombustion.C = heatCapacitorWithTwoPort1.C;
+    //   thermalConductor.G = bedCombustion.G;
+    //   thermalConductor2.G = bedCombustion.G;
+      connect(const.y, fuelSource.m_flow) annotation (Line(points={{-157,14},{-120,14},
+              {-120,2},{-116,2}}, color={0,0,127}));
+      connect(fuelSource.fuel_outlet, bedCombustion.fuel_in) annotation (Line(
+            points={{-96,-4},{-50,-4},{-50,34},{-45,34}}, color={0,0,0}));
+      connect(fixedTemperature.port, bodyRadiation.port_a)
+        annotation (Line(points={{-122,38},{-96,38}}, color={191,0,0}));
+      connect(bodyRadiation.port_b, bedCombustion.port_b) annotation (Line(
+            points={{-76,38},{-50,38},{-50,44},{-34,44}}, color={191,0,0}));
+      annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
+            coordinateSystem(preserveAspectRatio=false)));
+    end Unnamed;
   end Test;
 
   package Components
@@ -567,7 +589,7 @@
       import Modelica.Blocks.Interfaces;
       import BiomassBoiler.Functions.ArrheniusEquation;
 
-      extends BiomassBoiler.Components.HeatCapacitor;
+      extends BiomassBoiler.Components.HeatCapacities.HeatCapacitorWithNoEnergyEquation;
       extends Modelica.Blocks.Icons.Block;
 
       parameter Real tao = 24 "停留时间";
@@ -622,15 +644,25 @@
       import BiomassBoiler.Functions.ArrheniusEquation;
       import BiomassBoiler.Basics.Interfaces.Fuel_inlet;
 
-      extends BiomassBoiler.Components.HeatCapacitor;
+      extends
+        BiomassBoiler.Components.HeatCapacities.HeatCapacitorWithNoEnergyEquation;
       extends Modelica.Blocks.Icons.Block;
 
       parameter Length width = 3.7 "炉排宽度";
-      parameter Velocity v = 15 "炉排速度";
+      Length length "炉排单元长度";
+      //Real V_fuel;
+      parameter Velocity v = 15 "炉排速度m/h";
       parameter Real tao = 24 "停留时间";
       parameter Real cp = 2695 "燃料比热容";
       parameter Mass m_0 = 1 "初始燃料质量";
-      parameter Integer n_height = 10 "床层离散数量";
+      parameter Integer n_units = 2 "床层离散数量";
+      parameter Real G = 3.4 "热导率";
+    //   Modelica.Thermal.HeatTransfer.Components.ThermalConductor thermalConductor(G=3.4);
+    //   Modelica.Thermal.HeatTransfer.Components.HeatCapacitor heatCapacitor(C=2000);
+    //   HeatCapacities.HeatCapacitor heatCapacitor[n_units];
+    //   ThermalConductor thermalConductor[n_units];
+
+
       BiomassBoiler.Basics.Interfaces.Fuel_inlet fuel_in annotation (Placement(transformation(origin={-110,0},
     extent={{-10,-10},{10,10}})));
       BiomassBoiler.Basics.Interfaces.Fuel_outlet fuel_out annotation (Placement(
@@ -664,12 +696,14 @@
 
       /* Fuel outlet */
       fuel_out.m_flow = sum(m_sj_out);
-      if m <= 0 then
-        fuel_out.components = zeros(4);
-      else
-        fuel_out.components = m_sj / m;
-      end if;
+      fuel_out.components = m_sj / m;
       fuel_out.T = T;
+    //   if m <= 0 then
+    //     fuel_out.components = zeros(4);
+    //   else
+    //     fuel_out.components = m_sj / m;
+    //   end if;
+    //   fuel_out.T = T;
 
       // 蒸发速率、挥发分析出速率、焦炭燃烧速率
       //k_evp = ArrheniusEquation(5.13 * 10^10, 88000, T);
@@ -687,165 +721,261 @@
       der(m_sj[4]) = m_sj_in[4] - m_sj_out[4];
 
       // 能量平衡
-      C = cp * m "热容计算J/K";
+      C = cp * m / (n_units + 1) "热容计算J/K";
       //Q_fuel_h = cp * fuel_in.m_flow * (fuel_in.T - T) / tao;
       Q_fuel_h = 0;
       Q_evp = -R_evp * LHW;
       C * der(T) = Q_fuel_h + port_a.Q_flow + port_b.Q_flow + Q_evp;
+      //C * der(T) = Q_fuel_h + port_a.Q_flow + Q_evp;
+    //   heatCapacitor.C = C;
+      // 床层高度间热传导
+      //G = 0.2 * width *  length / bedHeight;
 
-    //   if m > 0 then
-    //     C * der(T) = Q_fuel_h + port_a.Q_flow + port_b.Q_flow + Q_evp;
-    //   else
-    //     der(T) = 0;
-    //   end if;
+    //   for i in 1:n_units loop
+    //     thermalConductor[i].G = G;
+    //     heatCapacitor[i].C = C;
+    //   end for;
 
+    //   connect(port_a, thermalConductor.port_a);
+    //   connect(heatCapacitor.port, thermalConductor.port_b);
+    //   connect(port_a, thermalConductor[1].port_a);
+    //   connect(heatCapacitor[1].port, thermalConductor[1].port_b);
+    //   for i in 2:n_units loop
+    //     connect(heatCapacitor[i-1].port, thermalConductor[i].port_a);
+    //     connect(heatCapacitor[i].port, thermalConductor[i].port_b);
+    //   end for;
 
-      // 总质量、床层高度
+      // 总质量、床层高度、单元长度、燃料体积
       m = sum(m_sj);
-      bedHeight = m / (width * (tao * v / 3600)) / 500;
+      length = tao * v / 3600;
+      bedHeight = m / (width * length) / 500;
+      //V_fuel = length * bedHeight * width;
+
 
     end BedCombustion;
 
-    model HeatCapacitor "Lumped thermal element storing heat"
+    package HeatCapacities
+      model HeatCapacitorWithNoEnergyEquation
+        "Lumped thermal element storing heat"
 
-      Modelica.Units.SI.HeatCapacity C "Heat capacity of element (= cp*m)";
-      Modelica.Units.SI.Temperature T(start=293.15, displayUnit="degC")
-        "Temperature of element";
-      Modelica.Units.SI.TemperatureSlope der_T(start=0)
-        "Time derivative of temperature (= der(T))";
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a annotation (
-          Placement(transformation(
-            origin={0,-100},
-            extent={{-10,-10},{10,10}},
-            rotation=90)));
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_b annotation (
-          Placement(transformation(origin={0,100}, extent={{-10,-10},{10,10}})));
-    equation
-      T = port_a.T;
-      der_T = der(T);
-      //C*der(T) = port_a.Q_flow;
-      // C*der(T) = port_a.Q_flow + port_b.Q_flow;
-      port_b.T = T;
-      // port_b.Q_flow = port.Q_flow;
-      annotation (
-        Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},{100,100}}),
-            graphics={
-            Text(
-              extent={{-150,110},{150,70}},
-              textString="%name",
-              lineColor={0,0,255}),
-            Polygon(
-              points={{0,67},{-20,63},{-40,57},{-52,43},{-58,35},{-68,25},{-72,13},{
-                  -76,-1},{-78,-15},{-76,-31},{-76,-43},{-76,-53},{-70,-65},{-64,-73},
-                  {-48,-77},{-30,-83},{-18,-83},{-2,-85},{8,-89},{22,-89},{32,-87},{
-                  42,-81},{54,-75},{56,-73},{66,-61},{68,-53},{70,-51},{72,-35},{76,
-                  -21},{78,-13},{78,3},{74,15},{66,25},{54,33},{44,41},{36,57},{26,65},
-                  {0,67}},
-              lineColor={160,160,164},
-              fillColor={192,192,192},
-              fillPattern=FillPattern.Solid),
-            Polygon(
-              points={{-58,35},{-68,25},{-72,13},{-76,-1},{-78,-15},{-76,-31},{-76,-43},
-                  {-76,-53},{-70,-65},{-64,-73},{-48,-77},{-30,-83},{-18,-83},{-2,-85},
-                  {8,-89},{22,-89},{32,-87},{42,-81},{54,-75},{42,-77},{40,-77},{30,
-                  -79},{20,-81},{18,-81},{10,-81},{2,-77},{-12,-73},{-22,-73},{-30,-71},
-                  {-40,-65},{-50,-55},{-56,-43},{-58,-35},{-58,-25},{-60,-13},{-60,-5},
-                  {-60,7},{-58,17},{-56,19},{-52,27},{-48,35},{-44,45},{-40,57},{-58,
-                  35}},
-              fillColor={160,160,164},
-              fillPattern=FillPattern.Solid),
-            Text(extent={{-69,7},{71,-24}}, textString="%C")}),
-        Diagram(coordinateSystem(
-            extent={{-100,-100},{100,100}},
-            preserveAspectRatio=true,
-            grid={2,2}), graphics={
-            Polygon(
-              origin={0,-11},
-              lineColor={160,160,164},
-              fillColor={192,192,192},
-              fillPattern=FillPattern.Solid,
-              points={{0,78},{-20,74},{-40,68},{-52,54},{-58,46},{-68,36},{-72,24},{
-                  -76,10},{-78,-4},{-76,-20},{-76,-32},{-76,-42},{-70,-54},{-64,-62},
-                  {-48,-66},{-30,-72},{-18,-72},{-2,-74},{8,-78},{22,-78},{32,-76},{
-                  42,-70},{54,-64},{56,-62},{66,-50},{68,-42},{70,-40},{72,-24},{76,
-                  -10},{78,-2},{78,14},{74,26},{66,36},{54,44},{44,52},{36,68},{26,76},
-                  {0,78}}),
-            Polygon(
-              origin={-12,-16},
-              fillColor={160,160,164},
-              fillPattern=FillPattern.Solid,
-              points={{-46,51},{-56,41},{-60,29},{-64,15},{-66,1},{-64,-15},{-64,-27},
-                  {-64,-37},{-58,-49},{-52,-57},{-36,-61},{-18,-67},{-6,-67},{10,-69},
-                  {20,-73},{34,-73},{44,-71},{54,-65},{66,-59},{54,-61},{52,-61},{42,
-                  -63},{32,-65},{30,-65},{22,-65},{14,-61},{0,-57},{-10,-57},{-18,-55},
-                  {-28,-49},{-38,-39},{-44,-27},{-46,-19},{-46,-9},{-48,3},{-48,11},
-                  {-48,23},{-46,33},{-44,35},{-40,43},{-36,51},{-32,61},{-28,73},{-46,
-                  51}}),
-            Ellipse(
-              origin={0,-6.5},
-              lineColor={255,0,0},
-              fillColor={191,0,0},
-              fillPattern=FillPattern.Solid,
-              extent={{-6,5.5},{6,-5.5}}),
-            Text(
-              origin={30.5,-6},
-              extent={{-19.5,19},{19.5,-19}},
-              textString="T"),
-            Line(
-              origin={0,-54},
-              points={{0,42},{0,-42}},
-              color={255,0,0})}),
-        Documentation(info="<html>
-<p>
-This is a generic model for the heat capacity of a material.
-No specific geometry is assumed beyond a total volume with
-uniform temperature for the entire volume.
-Furthermore, it is assumed that the heat capacity
-is constant (independent of temperature).
-</p>
-<p>
-The temperature T [Kelvin] of this component is a <strong>state</strong>.
-A default of T = 25 degree Celsius (= SIunits.Conversions.from_degC(25))
-is used as start value for initialization.
-This usually means that at start of integration the temperature of this
-component is 25 degrees Celsius. You may, of course, define a different
-temperature as start value for initialization. Alternatively, it is possible
-to set parameter <strong>steadyStateStart</strong> to <strong>true</strong>. In this case
-the additional equation '<strong>der</strong>(T) = 0' is used during
-initialization, i.e., the temperature T is computed in such a way that
-the component starts in <strong>steady state</strong>. This is useful in cases,
-where one would like to start simulation in a suitable operating
-point without being forced to integrate for a long time to arrive
-at this point.
-</p>
-<p>
-Note, that parameter <strong>steadyStateStart</strong> is not available in
-the parameter menu of the simulation window, because its value
-is utilized during translation to generate quite different
-equations depending on its setting. Therefore, the value of this
-parameter can only be changed before translating the model.
-</p>
-<p>
-This component may be used for complicated geometries where
-the heat capacity C is determined my measurements. If the component
-consists mainly of one type of material, the <strong>mass m</strong> of the
-component may be measured or calculated and multiplied with the
-<strong>specific heat capacity cp</strong> of the component material to
-compute C:
-</p>
-<pre>
-C = cp*m.
-Typical values for cp at 20 degC in J/(kg.K):
-  aluminium   896
-  concrete    840
-  copper      383
-  iron        452
-  silver      235
-  steel       420 ... 500 (V2A)
-  wood       2500
-</pre>
-</html>"));
-    end HeatCapacitor;
+        Modelica.Units.SI.HeatCapacity C "Heat capacity of element (= cp*m)";
+        Modelica.Units.SI.Temperature T(start=293.15, displayUnit="degC")
+          "Temperature of element";
+        Modelica.Units.SI.TemperatureSlope der_T(start=0)
+          "Time derivative of temperature (= der(T))";
+        Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a annotation (
+            Placement(transformation(
+              origin={0,-100},
+              extent={{-10,-10},{10,10}},
+              rotation=90)));
+        Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_b annotation (
+            Placement(transformation(origin={0,100}, extent={{-10,-10},{10,10}})));
+      equation
+        T = port_a.T;
+        der_T = der(T);
+        //C*der(T) = port_a.Q_flow;
+        // C*der(T) = port_a.Q_flow + port_b.Q_flow;
+        port_b.T = T;
+        annotation (Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},
+                  {100,100}}), graphics={
+              Text(
+                extent={{-150,110},{150,70}},
+                textString="%name",
+                lineColor={0,0,255}),
+              Polygon(
+                points={{0,67},{-20,63},{-40,57},{-52,43},{-58,35},{-68,25},{-72,13},{
+                    -76,-1},{-78,-15},{-76,-31},{-76,-43},{-76,-53},{-70,-65},{-64,-73},
+                    {-48,-77},{-30,-83},{-18,-83},{-2,-85},{8,-89},{22,-89},{32,-87},{
+                    42,-81},{54,-75},{56,-73},{66,-61},{68,-53},{70,-51},{72,-35},{76,
+                    -21},{78,-13},{78,3},{74,15},{66,25},{54,33},{44,41},{36,57},{26,65},
+                    {0,67}},
+                lineColor={160,160,164},
+                fillColor={192,192,192},
+                fillPattern=FillPattern.Solid),
+              Polygon(
+                points={{-58,35},{-68,25},{-72,13},{-76,-1},{-78,-15},{-76,-31},{-76,-43},
+                    {-76,-53},{-70,-65},{-64,-73},{-48,-77},{-30,-83},{-18,-83},{-2,-85},
+                    {8,-89},{22,-89},{32,-87},{42,-81},{54,-75},{42,-77},{40,-77},{30,
+                    -79},{20,-81},{18,-81},{10,-81},{2,-77},{-12,-73},{-22,-73},{-30,-71},
+                    {-40,-65},{-50,-55},{-56,-43},{-58,-35},{-58,-25},{-60,-13},{-60,-5},
+                    {-60,7},{-58,17},{-56,19},{-52,27},{-48,35},{-44,45},{-40,57},{-58,
+                    35}},
+                fillColor={160,160,164},
+                fillPattern=FillPattern.Solid),
+              Text(extent={{-69,7},{71,-24}}, textString="%C")}), Diagram(
+              coordinateSystem(
+              extent={{-100,-100},{100,100}},
+              preserveAspectRatio=true,
+              grid={2,2}), graphics={
+              Polygon(
+                origin={0,-11},
+                lineColor={160,160,164},
+                fillColor={192,192,192},
+                fillPattern=FillPattern.Solid,
+                points={{0,78},{-20,74},{-40,68},{-52,54},{-58,46},{-68,36},{-72,24},{
+                    -76,10},{-78,-4},{-76,-20},{-76,-32},{-76,-42},{-70,-54},{-64,-62},
+                    {-48,-66},{-30,-72},{-18,-72},{-2,-74},{8,-78},{22,-78},{32,-76},{
+                    42,-70},{54,-64},{56,-62},{66,-50},{68,-42},{70,-40},{72,-24},{76,
+                    -10},{78,-2},{78,14},{74,26},{66,36},{54,44},{44,52},{36,68},{26,76},
+                    {0,78}}),
+              Polygon(
+                origin={-12,-16},
+                fillColor={160,160,164},
+                fillPattern=FillPattern.Solid,
+                points={{-46,51},{-56,41},{-60,29},{-64,15},{-66,1},{-64,-15},{-64,-27},
+                    {-64,-37},{-58,-49},{-52,-57},{-36,-61},{-18,-67},{-6,-67},{10,-69},
+                    {20,-73},{34,-73},{44,-71},{54,-65},{66,-59},{54,-61},{52,-61},{42,
+                    -63},{32,-65},{30,-65},{22,-65},{14,-61},{0,-57},{-10,-57},{-18,-55},
+                    {-28,-49},{-38,-39},{-44,-27},{-46,-19},{-46,-9},{-48,3},{-48,11},
+                    {-48,23},{-46,33},{-44,35},{-40,43},{-36,51},{-32,61},{-28,73},{-46,
+                    51}}),
+              Ellipse(
+                origin={0,-6.5},
+                lineColor={255,0,0},
+                fillColor={191,0,0},
+                fillPattern=FillPattern.Solid,
+                extent={{-6,5.5},{6,-5.5}}),
+              Text(
+                origin={30.5,-6},
+                extent={{-19.5,19},{19.5,-19}},
+                textString="T"),
+              Line(
+                origin={0,-54},
+                points={{0,42},{0,-42}},
+                color={255,0,0})}));
+      end HeatCapacitorWithNoEnergyEquation;
+
+      model HeatCapacitorWithTwoPort
+        Modelica.Units.SI.HeatCapacity C "Heat capacity of element (= cp*m)";
+        Modelica.Units.SI.Temperature T(start=293.15, displayUnit="degC")
+          "Temperature of element";
+        Modelica.Units.SI.TemperatureSlope der_T(start=0)
+          "Time derivative of temperature (= der(T))";
+        Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a annotation (
+            Placement(transformation(
+              origin={0,-100},
+              extent={{-10,-10},{10,10}},
+              rotation=90)));
+        Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_b annotation (
+            Placement(transformation(origin={0,100}, extent={{-10,-10},{10,10}})));
+      equation
+        T = port_a.T;
+        der_T = der(T);
+        C*der(T) = port_a.Q_flow + port_b.Q_flow;
+        port_b.T = T;
+        annotation (Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},
+                  {100,100}}), graphics={
+              Text(
+                extent={{-150,110},{150,70}},
+                textString="%name",
+                lineColor={0,0,255}),
+              Polygon(
+                points={{0,67},{-20,63},{-40,57},{-52,43},{-58,35},{-68,25},{-72,13},{
+                    -76,-1},{-78,-15},{-76,-31},{-76,-43},{-76,-53},{-70,-65},{-64,-73},
+                    {-48,-77},{-30,-83},{-18,-83},{-2,-85},{8,-89},{22,-89},{32,-87},{
+                    42,-81},{54,-75},{56,-73},{66,-61},{68,-53},{70,-51},{72,-35},{76,
+                    -21},{78,-13},{78,3},{74,15},{66,25},{54,33},{44,41},{36,57},{26,65},
+                    {0,67}},
+                lineColor={160,160,164},
+                fillColor={192,192,192},
+                fillPattern=FillPattern.Solid),
+              Polygon(
+                points={{-58,35},{-68,25},{-72,13},{-76,-1},{-78,-15},{-76,-31},{-76,-43},
+                    {-76,-53},{-70,-65},{-64,-73},{-48,-77},{-30,-83},{-18,-83},{-2,-85},
+                    {8,-89},{22,-89},{32,-87},{42,-81},{54,-75},{42,-77},{40,-77},{30,
+                    -79},{20,-81},{18,-81},{10,-81},{2,-77},{-12,-73},{-22,-73},{-30,-71},
+                    {-40,-65},{-50,-55},{-56,-43},{-58,-35},{-58,-25},{-60,-13},{-60,-5},
+                    {-60,7},{-58,17},{-56,19},{-52,27},{-48,35},{-44,45},{-40,57},{-58,
+                    35}},
+                fillColor={160,160,164},
+                fillPattern=FillPattern.Solid),
+              Text(extent={{-69,7},{71,-24}}, textString="%C")}), Diagram(
+              coordinateSystem(
+              extent={{-100,-100},{100,100}},
+              preserveAspectRatio=true,
+              grid={2,2}), graphics={
+              Polygon(
+                origin={0,-11},
+                lineColor={160,160,164},
+                fillColor={192,192,192},
+                fillPattern=FillPattern.Solid,
+                points={{0,78},{-20,74},{-40,68},{-52,54},{-58,46},{-68,36},{-72,24},{
+                    -76,10},{-78,-4},{-76,-20},{-76,-32},{-76,-42},{-70,-54},{-64,-62},
+                    {-48,-66},{-30,-72},{-18,-72},{-2,-74},{8,-78},{22,-78},{32,-76},{
+                    42,-70},{54,-64},{56,-62},{66,-50},{68,-42},{70,-40},{72,-24},{76,
+                    -10},{78,-2},{78,14},{74,26},{66,36},{54,44},{44,52},{36,68},{26,76},
+                    {0,78}}),
+              Polygon(
+                origin={-12,-16},
+                fillColor={160,160,164},
+                fillPattern=FillPattern.Solid,
+                points={{-46,51},{-56,41},{-60,29},{-64,15},{-66,1},{-64,-15},{-64,-27},
+                    {-64,-37},{-58,-49},{-52,-57},{-36,-61},{-18,-67},{-6,-67},{10,-69},
+                    {20,-73},{34,-73},{44,-71},{54,-65},{66,-59},{54,-61},{52,-61},{42,
+                    -63},{32,-65},{30,-65},{22,-65},{14,-61},{0,-57},{-10,-57},{-18,-55},
+                    {-28,-49},{-38,-39},{-44,-27},{-46,-19},{-46,-9},{-48,3},{-48,11},
+                    {-48,23},{-46,33},{-44,35},{-40,43},{-36,51},{-32,61},{-28,73},{-46,
+                    51}}),
+              Ellipse(
+                origin={0,-6.5},
+                lineColor={255,0,0},
+                fillColor={191,0,0},
+                fillPattern=FillPattern.Solid,
+                extent={{-6,5.5},{6,-5.5}}),
+              Text(
+                origin={30.5,-6},
+                extent={{-19.5,19},{19.5,-19}},
+                textString="T"),
+              Line(
+                origin={0,-54},
+                points={{0,42},{0,-42}},
+                color={255,0,0})}));
+      end HeatCapacitorWithTwoPort;
+
+      model HeatCapacitor "Lumped thermal element storing heat"
+        Modelica.Units.SI.HeatCapacity C "Heat capacity of element (= cp*m)";
+        Modelica.Units.SI.Temperature T(start=293.15, displayUnit="degC")
+          "Temperature of element";
+        Modelica.Units.SI.TemperatureSlope der_T(start=0)
+          "Time derivative of temperature (= der(T))";
+        Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port annotation (
+            Placement(transformation(
+              origin={0,-100},
+              extent={{-10,-10},{10,10}},
+              rotation=90)));
+      equation
+        T = port.T;
+        der_T = der(T);
+        C*der(T) = port.Q_flow;
+        annotation (Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},
+                  {100,100}}), graphics={
+              Text(
+                extent={{-150,110},{150,70}},
+                textString="%name",
+                textColor={0,0,255}),
+              Polygon(
+                points={{0,67},{-20,63},{-40,57},{-52,43},{-58,35},{-68,25},{-72,13},{
+                    -76,-1},{-78,-15},{-76,-31},{-76,-43},{-76,-53},{-70,-65},{-64,-73},
+                    {-48,-77},{-30,-83},{-18,-83},{-2,-85},{8,-89},{22,-89},{32,-87},{
+                    42,-81},{54,-75},{56,-73},{66,-61},{68,-53},{70,-51},{72,-35},{76,
+                    -21},{78,-13},{78,3},{74,15},{66,25},{54,33},{44,41},{36,57},{26,65},
+                    {0,67}},
+                lineColor={160,160,164},
+                fillColor={192,192,192},
+                fillPattern=FillPattern.Solid),
+              Polygon(
+                points={{-58,35},{-68,25},{-72,13},{-76,-1},{-78,-15},{-76,-31},{-76,-43},
+                    {-76,-53},{-70,-65},{-64,-73},{-48,-77},{-30,-83},{-18,-83},{-2,-85},
+                    {8,-89},{22,-89},{32,-87},{42,-81},{54,-75},{42,-77},{40,-77},{30,
+                    -79},{20,-81},{18,-81},{10,-81},{2,-77},{-12,-73},{-22,-73},{-30,-71},
+                    {-40,-65},{-50,-55},{-56,-43},{-58,-35},{-58,-25},{-60,-13},{-60,-5},
+                    {-60,7},{-58,17},{-56,19},{-52,27},{-48,35},{-44,45},{-40,57},{-58,
+                    35}},
+                fillColor={160,160,164},
+                fillPattern=FillPattern.Solid),
+              Text(extent={{-69,7},{71,-24}}, textString="%C")}));
+      end HeatCapacitor;
+    end HeatCapacities;
 
     package BoundaryConditions
       model FuelSource
@@ -918,99 +1048,35 @@ Typical values for cp at 20 degC in J/(kg.K):
     end BoundaryConditions;
 
     model BedUnits
-      import BiomassBoiler.Components.HeatCapacitorWithTwoPort;
+      import BiomassBoiler.Components.HeatCapacities.HeatCapacitorWithTwoPort;
 
       HeatCapacitorWithTwoPort heatCapacitor[10];
     equation
 
     end BedUnits;
 
-    model HeatCapacitorWithTwoPort
-      Modelica.Units.SI.HeatCapacity C "Heat capacity of element (= cp*m)";
-      Modelica.Units.SI.Temperature T(start=293.15, displayUnit="degC")
-        "Temperature of element";
-      Modelica.Units.SI.TemperatureSlope der_T(start=0)
-        "Time derivative of temperature (= der(T))";
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a annotation (
-          Placement(transformation(
-            origin={0,-100},
-            extent={{-10,-10},{10,10}},
-            rotation=90)));
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_b annotation (
-          Placement(transformation(origin={0,100}, extent={{-10,-10},{10,10}})));
+    model ThermalConductor
+      "Lumped thermal element transporting heat without storing it"
+      extends Modelica.Thermal.HeatTransfer.Interfaces.Element1D;
+      Modelica.Units.SI.ThermalConductance G "Constant thermal conductance of material";
+
     equation
-      T = port_a.T;
-      der_T = der(T);
-      C*der(T) = port_a.Q_flow + port_b.Q_flow;
-      port_b.T = T;
+      Q_flow = G*dT;
       annotation (Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},
                 {100,100}}), graphics={
+            Rectangle(
+              extent={{-90,70},{90,-70}},
+              pattern=LinePattern.None,
+              fillColor={192,192,192},
+              fillPattern=FillPattern.Backward),
+            Line(points={{-90,70},{-90,-70}}, thickness=0.5),
+            Line(points={{90,70},{90,-70}}, thickness=0.5),
             Text(
-              extent={{-150,110},{150,70}},
+              extent={{-150,120},{150,80}},
               textString="%name",
-              lineColor={0,0,255}),
-            Polygon(
-              points={{0,67},{-20,63},{-40,57},{-52,43},{-58,35},{-68,25},{-72,13},{
-                  -76,-1},{-78,-15},{-76,-31},{-76,-43},{-76,-53},{-70,-65},{-64,-73},
-                  {-48,-77},{-30,-83},{-18,-83},{-2,-85},{8,-89},{22,-89},{32,-87},{
-                  42,-81},{54,-75},{56,-73},{66,-61},{68,-53},{70,-51},{72,-35},{76,
-                  -21},{78,-13},{78,3},{74,15},{66,25},{54,33},{44,41},{36,57},{26,65},
-                  {0,67}},
-              lineColor={160,160,164},
-              fillColor={192,192,192},
-              fillPattern=FillPattern.Solid),
-            Polygon(
-              points={{-58,35},{-68,25},{-72,13},{-76,-1},{-78,-15},{-76,-31},{-76,-43},
-                  {-76,-53},{-70,-65},{-64,-73},{-48,-77},{-30,-83},{-18,-83},{-2,-85},
-                  {8,-89},{22,-89},{32,-87},{42,-81},{54,-75},{42,-77},{40,-77},{30,
-                  -79},{20,-81},{18,-81},{10,-81},{2,-77},{-12,-73},{-22,-73},{-30,-71},
-                  {-40,-65},{-50,-55},{-56,-43},{-58,-35},{-58,-25},{-60,-13},{-60,-5},
-                  {-60,7},{-58,17},{-56,19},{-52,27},{-48,35},{-44,45},{-40,57},{-58,
-                  35}},
-              fillColor={160,160,164},
-              fillPattern=FillPattern.Solid),
-            Text(extent={{-69,7},{71,-24}}, textString="%C")}), Diagram(
-            coordinateSystem(
-            extent={{-100,-100},{100,100}},
-            preserveAspectRatio=true,
-            grid={2,2}), graphics={
-            Polygon(
-              origin={0,-11},
-              lineColor={160,160,164},
-              fillColor={192,192,192},
-              fillPattern=FillPattern.Solid,
-              points={{0,78},{-20,74},{-40,68},{-52,54},{-58,46},{-68,36},{-72,24},{
-                  -76,10},{-78,-4},{-76,-20},{-76,-32},{-76,-42},{-70,-54},{-64,-62},
-                  {-48,-66},{-30,-72},{-18,-72},{-2,-74},{8,-78},{22,-78},{32,-76},{
-                  42,-70},{54,-64},{56,-62},{66,-50},{68,-42},{70,-40},{72,-24},{76,
-                  -10},{78,-2},{78,14},{74,26},{66,36},{54,44},{44,52},{36,68},{26,76},
-                  {0,78}}),
-            Polygon(
-              origin={-12,-16},
-              fillColor={160,160,164},
-              fillPattern=FillPattern.Solid,
-              points={{-46,51},{-56,41},{-60,29},{-64,15},{-66,1},{-64,-15},{-64,-27},
-                  {-64,-37},{-58,-49},{-52,-57},{-36,-61},{-18,-67},{-6,-67},{10,-69},
-                  {20,-73},{34,-73},{44,-71},{54,-65},{66,-59},{54,-61},{52,-61},{42,
-                  -63},{32,-65},{30,-65},{22,-65},{14,-61},{0,-57},{-10,-57},{-18,-55},
-                  {-28,-49},{-38,-39},{-44,-27},{-46,-19},{-46,-9},{-48,3},{-48,11},
-                  {-48,23},{-46,33},{-44,35},{-40,43},{-36,51},{-32,61},{-28,73},{-46,
-                  51}}),
-            Ellipse(
-              origin={0,-6.5},
-              lineColor={255,0,0},
-              fillColor={191,0,0},
-              fillPattern=FillPattern.Solid,
-              extent={{-6,5.5},{6,-5.5}}),
-            Text(
-              origin={30.5,-6},
-              extent={{-19.5,19},{19.5,-19}},
-              textString="T"),
-            Line(
-              origin={0,-54},
-              points={{0,42},{0,-42}},
-              color={255,0,0})}));
-    end HeatCapacitorWithTwoPort;
+              textColor={0,0,255}),
+            Text(extent={{-150,-80},{150,-110}}, textString="G=%G")}));
+    end ThermalConductor;
   end Components;
   annotation (uses(Modelica(version="4.0.0")));
 end BiomassBoiler;
