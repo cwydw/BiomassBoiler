@@ -60,6 +60,46 @@
     algorithm
       D := 0.207*10^(-4)*(T/300)^1.75;
     end DiffusionCoef_O2;
+
+    function R_mix "床层气体混合速率"
+      import BiomassBoiler.Units.ConcentrationRate;
+      import SIUnits = Modelica.Units.SI;
+
+      input SIUnits.DiffusionCoefficient D_g "挥发分气体扩散系数";
+      input SIUnits.Diameter d_p "燃料颗粒直径";
+      input SIUnits.Concentration C_i "燃烧气体i浓度";
+      input SIUnits.Concentration C_o2;
+      input SIUnits.Velocity u_g "气体表观速度";
+      input Real epsilon "床层孔隙率";
+      input Real omega_i "反应当量系数";
+      input Real omega_o2;
+
+      output ConcentrationRate R_mix;
+    algorithm
+      R_mix := 0.83*(150*D_g*(1 - epsilon)^(2/3)/(d_p^2*epsilon) + 1.75*u_g*(1 -
+        epsilon)^(1/3)/(d_p*epsilon))*min(C_i/omega_i, C_o2/omega_o2);
+    end R_mix;
+
+    function DiffusionCoef
+      import SIUnits = Modelica.Units.SI;
+
+      input SIUnits.Temperature T;
+      input SIUnits.Temperature T_ref;
+      input SIUnits.Pressure p;
+      input SIUnits.Pressure p_ref;
+      input SIUnits.DiffusionCoefficient D_ref;
+      output SIUnits.DiffusionCoefficient D;
+    algorithm
+      D := D_ref*(T/T_ref)^1.75*(p_ref/p);
+    end DiffusionCoef;
+
+    function Weighted_Average
+      input Real x[:] "weight";
+      input Real y[:] "value";
+      output Real wa;
+    algorithm
+      wa := sum(x*y);
+    end Weighted_Average;
   end Functions;
 
   package Units
@@ -757,12 +797,12 @@
          Common.SingleGasesData.CH4, Common.SingleGasesData.C2H6, Common.SingleGasesData.H2O},
         fluidConstants={Common.FluidData.O2, Common.FluidData.CO2, Common.FluidData.H2,
          Common.FluidData.CH4, Common.FluidData.C2H6, Common.FluidData.H2O},
-        substanceNames={"ExhaustGas"},
-        reference_X={1});
+        substanceNames={"CO", "CO2", "H2", "CH4", "C2H6", "H2O"},
+        reference_X={0.507123,0.143,0.0045098,0.1537,0.0606672,0.131});
 
       Medium.BaseProperties medium(
         T(start=600, fixed=true),
-        X(start={1}),
+        X(start={0.507123,0.143,0.0045098,0.1537,0.0606672,0.131}),
         p(start=1.0133e5, fixed=true));
 
       // 计算混合物的热力学属性
@@ -775,7 +815,7 @@
     equation
       der(medium.T) = 0;
       medium.p = 1.0133e5;
-      medium.X = {1};
+      medium.X = {0.507123,0.143,0.0045098,0.1537,0.0606672,0.131};
 
 
     end Unnamed1;
@@ -795,6 +835,7 @@
       //   d = Medium.density_ph(p, h);
       //   // 其他需要的热力学性质也可以类似地获取
       import water = Modelica.Media.Water.WaterIF97_pT;
+      import      Modelica.Media.IdealGases.SingleGases.O2;
 
 
       water.BaseProperties medium(
@@ -815,18 +856,56 @@
     end UseExternalMedia;
 
     model GasReaction
-      BiomassBoiler.ChemicalReactions.GasPhase.Solution solution(C(start={10,30,10,10,0,0,0.5}));
+      import BiomassBoiler.ChemicalReactions.GasPhase.GasSpecies;
+      import BiomassBoiler.Functions.DiffusionCoef;
+      import BiomassBoiler.Functions.Weighted_Average;
+      import BiomassBoiler.Functions.DiffusionCoef_O2;
+      import BiomassBoiler.Functions.R_mix;
+      import Modelica.Units.SI;
+      BiomassBoiler.ChemicalReactions.GasPhase.Solution solution(C(start={10,25,10,10,0,0,0.5}));
       BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'CO + 1/2 * O2 -> CO2' reaction1;
       BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'H2 + 1/2 * O2 -> H2O' reaction2;
       BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'CH4 + 3/2 * O2 -> CO + 2 * H2O' reaction3;
+      Real xi[GasSpecies];
+      Real D_co;
+      Real D_o2;
+      Real D_h2;
+      Real D_ch4;
+      Real D_c2h6;
+      Real D_co2;
+      Real D_h2o;
+      Real D_mix;
+    //   Real r_mix[7];
+      Real r_mix;
+      parameter SI.Pressure p_ref = 1.0133e5;
+      parameter SI.Pressure p = 1.0133e5;
+      parameter SI.Temperature T_ref = 293.15;
+      parameter SI.Temperature T = 1000;
     equation
       connect(reaction1.mixture, solution.mixture);
       connect(reaction2.mixture, solution.mixture);
       connect(reaction3.mixture, solution.mixture);
+
+      D_co = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.208*10^(-4));
+      D_o2 = DiffusionCoef_O2(T);
+      D_h2 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.756*10^(-4));
+      D_ch4 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.21*10^(-4));
+      D_c2h6 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.126*10^(-4));
+      D_co2 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.16*10^(-4));
+      D_h2o = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.242*10^(-4));
+      D_mix = Weighted_Average(xi,{D_co,D_o2,D_h2,D_ch4,D_c2h6,D_co2,D_h2o});
+      xi = solution.C / sum(solution.C);
+    //   for i in 1:7 loop
+    //     r_mix[i] = R_mix(D_mix,0.01,solution.C[i],solution.C[2],0.22,0.4,1,0.5);
+    //   end for;
+      r_mix =  R_mix(1.70219045*10^(-4),0.02,10,5,0.22,0.4,1,0.5);
+      reaction1.R_mix = r_mix;
+      reaction2.R_mix = r_mix;
       annotation (experiment(
           StopTime=10,
-          __Dymola_NumberOfIntervals=100,
-          __Dymola_Algorithm="Dassl"));
+          __Dymola_NumberOfIntervals=1000,
+          Tolerance=1e-12,
+          __Dymola_Algorithm="Lsodar"));
     end GasReaction;
 
     model gasTest
@@ -867,6 +946,163 @@
       medium.X = {0.6918,0.136,0.0899,0.0823};
       medium.p = 100307.6;
     end gasTest;
+
+    model ReactionTest
+      extends Vol;
+      import BiomassBoiler.Functions.ArrheniusEquation;
+      import Modelica.Units.SI.MolarMass;
+
+    //   type GasSpecies = enumeration(
+    //       CO,
+    //       O2,
+    //       H2,
+    //       CH4,
+    //       C2H6,
+    //       CO2,
+    //       H2O);
+
+      Modelica.Units.SI.Concentration C[GasSpecies](min=0) "GasSpecies concentrations";
+      Modelica.Units.SI.MolarFlowRate fluegas[GasSpecies](min=0);
+
+    //   constant GasSpecies CO=GasSpecies.CO;
+    //   constant GasSpecies O2=GasSpecies.O2;
+    //   constant GasSpecies H2=GasSpecies.H2;
+    //   constant GasSpecies CH4=GasSpecies.CH4;
+    //   constant GasSpecies C2H6=GasSpecies.C2H6;
+    //   constant GasSpecies CO2=GasSpecies.CO2;
+    //   constant GasSpecies H2O=GasSpecies.H2O;
+    protected
+      constant MolarMass mm[GasSpecies] = {0.02801,0.032,0.002016,0.016042,0.030068,0.04401,0.018016};
+      parameter Modelica.Units.SI.Temperature T=973.15;
+      Real k1=ArrheniusEquation(
+          3.25*10^7,
+          15098*8.314,
+          T);
+      Real k2=ArrheniusEquation(
+          51.8,
+          3420*8.314,
+          T)*T^1.5;
+      Real k3=ArrheniusEquation(
+          1.585*10^10,
+          24157*8.314,
+          T);
+      Real k4=ArrheniusEquation(
+          2.67*10^8,
+          20131*8.314,
+          T)*T^0.5;
+
+    public
+      Real R_CO;
+      Real R_H2;
+      Real R_CH4;
+      Real R_C2H6;
+    initial equation
+      C = {10,50,10,10,10,0,0};
+    equation
+
+    //   R_CO = k1*C[CO]*C[O2]^0.5*C[H2O]^0.5;
+    //   R_H2 = k2*C[H2]^1.5*C[O2];
+    //   R_CH4 = k3*C[CH4]^0.7*C[O2]^0.8;
+    //   R_C2H6 = k4*C[C2H6]*C[O2];
+
+    //   fluegas = 1.5*y./mm;
+      for i in 1:size(fluegas,1) loop
+        if i <> 2 then
+          fluegas[i] = 1.5*y[i]/mm[i];
+        else
+          fluegas[i] = (fluegas[CH4]*2 + fluegas[C2H6]*3.5 + fluegas[CO]*0.5 + fluegas[H2]*0.5)*1.2;
+        end if;
+      end for;
+      if noEvent(C[CO] <= 1e-6 or C[O2] <= 1e-6) then
+        R_CO = 0;
+      else
+        R_CO = k1*C[CO]*C[O2]^0.5*C[H2O]^0.5;
+      end if;
+
+      if noEvent(C[H2] <= 1e-6 or C[O2] <= 1e-6) then
+        R_H2 = 0;
+      else
+        R_H2 = min(k2*C[H2]^1.5*C[O2], 1279);
+      end if;
+
+      if noEvent(C[CH4] <= 1e-6 or C[O2] <= 1e-6) then
+        R_CH4 = 0;
+      else
+        R_CH4 = k3*C[CH4]^0.7*C[O2]^0.8;
+      end if;
+
+      if noEvent(C[C2H6] <= 1e-6 or C[O2] <= 1e-6) then
+        R_C2H6 = 0;
+      else
+        R_C2H6 = min(k4*C[C2H6]*C[O2],1279);
+      end if;
+
+      der(C[CO]) = -R_CO + R_CH4 + 2*R_C2H6 + fluegas[CO];
+      der(C[H2]) = -R_H2 + fluegas[H2];
+      der(C[CH4]) = -R_CH4 + fluegas[CH4];
+      der(C[O2]) = -R_CO/2 - R_H2/2 - R_CH4*1.5 - R_C2H6*2.5 + fluegas[O2] - C[O2];
+      der(C[CO2]) = R_CO + fluegas[CO2] - C[CO2];
+      der(C[H2O]) = R_H2 + R_CH4*2 + R_C2H6*3 + fluegas[H2O] - C[H2O];
+      der(C[C2H6]) = -R_C2H6 + fluegas[C2H6];
+
+      //   der(C[CO]) = -k1*C[CO]*C[O2]^0.5*C[H2O]^0.5 + k3*C[CH4]^0.7*C[O2]^0.8 + 2*k4*C[C2H6]*C[O2];
+      //   der(C[H2]) = -k2*C[H2]^1.5*C[O2];
+      //   der(C[CH4]) = -k3*C[CH4]^0.7*C[O2]^0.8;
+      //   der(C[O2]) = -k1*C[CO]*C[O2]^0.5*C[H2O]^0.5/2 - k2*C[H2]^1.5*C[O2]/2 - k3*C[CH4]^0.7*C[O2]^0.8*1.5 - 2.5*k4*C[C2H6]*C[O2];
+      //   der(C[CO2]) = k1*C[CO]*C[O2]^0.5*C[H2O]^0.5;
+      //   der(C[H2O]) = k2*C[H2]^1.5*C[O2] + k3*C[CH4]^0.7*C[O2]^0.8*2 + 3*k4*C[C2H6]*C[O2];
+      //   der(C[C2H6]) = -k4*C[C2H6]*C[O2];
+
+
+      annotation (experiment(
+          StopTime=1000,
+          Interval=0.2,
+          __Dymola_Algorithm="Dassl"));
+    end ReactionTest;
+
+    model Vol
+      type GasSpecies = enumeration(
+          CO,
+          O2,
+          H2,
+          CH4,
+          C2H6,
+          CO2,
+          H2O);
+    protected
+      constant Real MW_C = 12.01;    // 碳的摩尔质量, kg/kmol
+      constant Real MW_H = 1.008;    // 氢的摩尔质量, kg/kmol
+      constant Real MW_O = 16.00;    // 氧的摩尔质量, kg/kmol
+      constant Real MW_O2 = 32.00;    // O2的摩尔质量, kg/kmol
+      constant Real MW_CO = 28.01;   // CO的摩尔质量, kg/kmol
+      constant Real MW_CO2 = 44.01;  // CO2的摩尔质量, kg/kmol
+      constant Real MW_H2 = 2.016;   // H2的摩尔质量, kg/kmol
+      constant Real MW_CH4 = 16.042; // CH4的摩尔质量, kg/kmol
+      constant Real MW_C2H6 = 30.068; // C2H6的摩尔质量, kg/kmol
+      constant Real MW_H2O = 18.016; // H2O的摩尔质量, kg/kmol
+
+      constant GasSpecies CO=GasSpecies.CO;
+      constant GasSpecies O2=GasSpecies.O2;
+      constant GasSpecies H2=GasSpecies.H2;
+      constant GasSpecies CH4=GasSpecies.CH4;
+      constant GasSpecies C2H6=GasSpecies.C2H6;
+      constant GasSpecies CO2=GasSpecies.CO2;
+      constant GasSpecies H2O=GasSpecies.H2O;
+    public
+      Modelica.Units.SI.MassFraction y[GasSpecies](min=0);
+      Real t;
+    equation
+      y[O2] = 0;
+      y[CO2] = 0.143;
+      y[CH4] = 0.1537;
+      y[H2O] = 0.131;
+    //   y[H2] = 0.02;
+      sum(y) = t;
+      y[CO]*MW_C/MW_CO + y[CO2]*MW_C/MW_CO2 + y[CH4]*MW_C/MW_CH4 + y[C2H6]*MW_C*2/MW_C2H6 = 0.42;
+      y[CO]*MW_O/MW_CO + y[CO2]*MW_O*2/MW_CO2 + y[H2O]*MW_O/MW_H2O = 0.51;
+      y[CH4]*MW_H*4/MW_CH4 + y[C2H6]*MW_H*6/MW_C2H6 + y[H2O]*MW_H*2/MW_H2O + y[H2]*MW_H*2/MW_H2 = 0.07;
+
+    end Vol;
   end Test;
 
   package Components
@@ -1637,6 +1873,8 @@
           extends Interfaces.Reaction;
           import BiomassBoiler.Functions.ArrheniusEquation;
           import BiomassBoiler.Units.ConcentrationRate;
+        public
+          ConcentrationRate R_mix;
         protected
           ConcentrationRate R;
         initial equation
@@ -1646,11 +1884,11 @@
             15098*8.314,
             1000);
           if noEvent(C[GasSpecies.CO]>0 and C[GasSpecies.O2]>0) then
-            R = k*C[GasSpecies.CO]*sqrt(C[GasSpecies.O2])*sqrt(C[GasSpecies.H2O]);
+            R = min(k*C[GasSpecies.CO]*sqrt(C[GasSpecies.O2])*sqrt(C[GasSpecies.H2O]),R_mix);
           else
             R = 0;
           end if;
-
+        //   C[GasSpecies.CO] = noEvent(max(0, C[GasSpecies.CO]));
           consumed[GasSpecies.CO] = R;
           consumed[GasSpecies.O2] = R/2;
           consumed[GasSpecies.H2] = 0;
@@ -1665,34 +1903,42 @@
           extends Interfaces.Reaction;
           import BiomassBoiler.Functions.ArrheniusEquation;
           import BiomassBoiler.Units.ConcentrationRate;
+        public
+          ConcentrationRate R_mix;
         protected
           ConcentrationRate R;
+
         initial equation
         equation
-        //   k = ArrheniusEquation(
-        //     1.631*10^9,
-        //     24157*8.314,
+          //   k = ArrheniusEquation(
+          //     1.631*10^9,
+          //     24157*8.314,
           //     1000);
           k = ArrheniusEquation(
             51.8,
             3420*8.314,
             1000);
-          if noEvent(C[GasSpecies.H2]>0 and C[GasSpecies.O2]>0) then
-            //     R = k*C[GasSpecies.H2]^1.5*C[GasSpecies.O2]*1000^1.5;
-            R = k * C[GasSpecies.H2]^1.5 * C[GasSpecies.O2] * 1000^1.5;
+          //   if noEvent(C[GasSpecies.H2] > 0 and C[GasSpecies.O2] > 0) then
+          //     R = min(k*C[GasSpecies.H2]^1.5*C[GasSpecies.O2]*1000^1.5, R_mix);
+          //   else
+          //     R = 0;
+          //   end if;
+          if noEvent(C[GasSpecies.H2] > 0) then
+            R = min(k*C[GasSpecies.H2]^1.5*C[GasSpecies.O2]*1000^1.5, R_mix);
           else
             R = 0;
           end if;
-
+          //   R = k*max(C[GasSpecies.H2],0)^1.5*max(C[GasSpecies.O2],0)*1000^1.5;
+          //   C[GasSpecies.H2] = smooth(1, max(0,C[GasSpecies.H2]));
           consumed[GasSpecies.CO] = 0;
-        //   consumed[GasSpecies.O2] = R;
-        //   consumed[GasSpecies.H2] = 2*R;
-          consumed[GasSpecies.O2] = R / 2;
+          //   consumed[GasSpecies.O2] = R;
+          //   consumed[GasSpecies.H2] = 2*R;
+          consumed[GasSpecies.O2] = R/2;
           consumed[GasSpecies.H2] = R;
           consumed[GasSpecies.CH4] = 0;
           consumed[GasSpecies.C2H6] = 0;
           consumed[GasSpecies.CO2] = 0;
-        //   produced[GasSpecies.H2O] = 2*R;
+          //   produced[GasSpecies.H2O] = 2*R;
           produced[GasSpecies.H2O] = R;
         end 'H2 + 1/2 * O2 -> H2O';
 
@@ -1700,6 +1946,7 @@
           extends Interfaces.Reaction;
           import BiomassBoiler.Functions.ArrheniusEquation;
           import BiomassBoiler.Units.ConcentrationRate;
+
         protected
           ConcentrationRate R;
         initial equation
@@ -1713,7 +1960,6 @@
           else
             R = 0;
           end if;
-
           produced[GasSpecies.CO] = R;
           consumed[GasSpecies.O2] = 1.5*R;
           consumed[GasSpecies.H2] = 0;
@@ -1722,6 +1968,11 @@
           consumed[GasSpecies.CO2] = 0;
           produced[GasSpecies.H2O] = 2*R;
         end 'CH4 + 3/2 * O2 -> CO + 2 * H2O';
+
+        model 'C2H6 + 5/2 * O2 -> 2 * CO + 3 * H2O'
+          annotation (Icon(coordinateSystem(preserveAspectRatio=false)),
+              Diagram(coordinateSystem(preserveAspectRatio=false)));
+        end 'C2H6 + 5/2 * O2 -> 2 * CO + 3 * H2O';
       end Reaction;
     end GasPhase;
 
