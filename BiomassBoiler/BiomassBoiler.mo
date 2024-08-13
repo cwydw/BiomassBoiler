@@ -109,6 +109,14 @@
   end Units;
 
   package Basics
+    type GasSpecies = enumeration(
+        CO,
+        O2,
+        H2,
+        CH4,
+        C2H6,
+        CO2,
+        H2O) "烟气成分";
     package Interfaces
       connector Fuel_inlet "Fuel inlet connector"
         import Modelica.Units.SI.MassFlowRate;
@@ -155,13 +163,13 @@
         import Modelica.Units.SI.MassFlowRate;
         import Modelica.Units.SI.Temperature;
         import Modelica.Units.SI.SpecificHeatCapacity;
-        import Modelica.Units.SI.SpecificEnergy;
-        import Modelica.Units.SI.Density;
         import BiomassBoiler.Units.MassFraction;
+        import BiomassBoiler.Basics.GasSpecies;
 
         MassFlowRate m_flow "flueGas mass flow rate";
         Temperature T "flueGas temperature";
-        MassFraction composition[6] "烟气组成";
+        MassFraction composition[GasSpecies] "烟气组成";
+        SpecificHeatCapacity cp "烟气比热容";
 
         annotation (   Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},
                   {100,100}}),
@@ -699,32 +707,74 @@
       annotation (experiment(Interval=1, __Dymola_Algorithm="Dassl"));
     end A;
 
-    model Unnamed
+    model Unnamed "计算标准摩尔反应焓"
       import Modelica.Units.SI;
       import BiomassBoiler.Units.MassFraction;
       import Air = Modelica.Media.Air.ReferenceAir.Air_pT;
+      import Modelica.Media.IdealGases.SingleGases.CO;
+      import Modelica.Media.IdealGases.SingleGases.H2O;
+      import Modelica.Media.IdealGases.SingleGases.CH4;
+      import Modelica.Media.IdealGases.SingleGases.O2;
 
-      Air.BaseProperties medium(
-        T,
-        p);
+    //   Air.BaseProperties medium(
+    //     T,
+    //     p);
 
       SI.Temperature T "Temperature";
-      MassFraction X[6] "Composition";
-      MassFraction X1[4] "Composition";
       SI.Pressure p "Pressure";
-      BiomassBoiler.Components.FlueGasObject flueGas(p=p,T=T,X=X);
-      BiomassBoiler.Components.AirObject air(p=p,T=T,X=X1);
+    //   MassFraction X[6] "Composition";
+    //   MassFraction X1[4] "Composition";
+    //
+    //   BiomassBoiler.Components.FlueGasObject flueGas(p=p,T=T,X=X);
+    //   BiomassBoiler.Components.AirObject air(p=p,T=T,X=X1);
+    //
+    //   Air.Density rho = Air.density(medium.state);
 
-      Air.Density rho = Air.density(medium.state);
 
-    equation
-      T = 273.15;
-      X = {0.1383,0.032,0.0688,1 - 0.1383 - 0.032 - 0.0688 - 0.0000000001 - 0.0000000001,
-        0.0000000001,0.0000000001};
-      X1 = {0.7808, 0.2095, 0.0093, 1-0.7808-0.2095-0.0093};
+      CO.BaseProperties medium_CO;
+      CO.SpecificHeatCapacity cp_CO=CO.specificHeatCapacityCp(medium_CO.state);
+
+      O2.BaseProperties medium_O2;
+      O2.SpecificHeatCapacity cp_O2=O2.specificHeatCapacityCp(medium_O2.state);
+
+      CH4.BaseProperties medium_CH4;
+      CH4.SpecificHeatCapacity cp_CH4=CH4.specificHeatCapacityCp(medium_CH4.state);
+
+      H2O.BaseProperties medium_H2O;
+      H2O.SpecificHeatCapacity cp_H2O=H2O.specificHeatCapacityCp(medium_H2O.state);
+
+      Real h;
+
+    protected
+      constant Real MW_O2 = 0.032;
+      constant Real MW_CO = 0.02801;
+      constant Real MW_CH4 = 0.016042;
+      constant Real MW_H2O = 0.018016;
+
+    initial equation
+      T = 393.15;
       p = 1.0133e5;
-      der(medium.T) = 0;
-      medium.p = p;
+    equation
+    //   X = {0.1383,0.032,0.0688,1 - 0.1383 - 0.032 - 0.0688 - 0.0000000001 - 0.0000000001,
+    //     0.0000000001,0.0000000001};
+    //   X1 = {0.7808, 0.2095, 0.0093, 1-0.7808-0.2095-0.0093};
+
+    //   der(medium.T) = 0;
+    //   medium.p = p;
+    //   medium1.T = 293.15;
+
+      der(T) = 1;
+      der(p) = 0;
+      medium_CO.T = T;
+      medium_CH4.T = T;
+      medium_O2.T = T;
+      medium_H2O.T = T;
+      medium_CO.p = p;
+      medium_CH4.p = p;
+      medium_O2.p = p;
+      medium_H2O.p = p;
+
+      der(h) = (der(cp_CO)*MW_CO + der(cp_H2O)*2*MW_H2O - der(cp_CH4)*MW_CH4 - der(cp_O2)*1.5*MW_O2)*der(T);
 
 
 
@@ -950,7 +1000,17 @@
     model ReactionTest
       extends Vol;
       import BiomassBoiler.Functions.ArrheniusEquation;
+      import Modelica.Units.SI.MolarFlowRate;
       import Modelica.Units.SI.MolarMass;
+      import Modelica.Units.SI.Concentration;
+      import Modelica.Units.SI.HeatFlowRate;
+      import Modelica.Units.SI.HelmholtzFreeEnergy;
+
+      BiomassBoiler.Components.FlueGasObject flueGasObject;
+      Real t;
+      parameter Real p = 1.0133e5;
+      Modelica.Units.SI.MassFraction mf[GasSpecies];
+
 
     //   type GasSpecies = enumeration(
     //       CO,
@@ -961,8 +1021,7 @@
     //       CO2,
     //       H2O);
 
-      Modelica.Units.SI.Concentration C[GasSpecies](min=0) "GasSpecies concentrations";
-      Modelica.Units.SI.MolarFlowRate fluegas[GasSpecies](min=0);
+
 
     //   constant GasSpecies CO=GasSpecies.CO;
     //   constant GasSpecies O2=GasSpecies.O2;
@@ -971,7 +1030,13 @@
     //   constant GasSpecies C2H6=GasSpecies.C2H6;
     //   constant GasSpecies CO2=GasSpecies.CO2;
     //   constant GasSpecies H2O=GasSpecies.H2O;
+
     protected
+      constant Real h_CO(unit="J/mol") = 283000 "标准摩尔反应焓";
+      constant Real h_H2(unit="J/mol") = 241800 "标准摩尔反应焓";
+      constant Real h_CH4(unit="J/mol") = 519500 "标准摩尔反应焓";
+      constant Real h_C2H6(unit="J/mol") = 862400 "标准摩尔反应焓";
+      //constant Real
       constant MolarMass mm[GasSpecies] = {0.02801,0.032,0.002016,0.016042,0.030068,0.04401,0.018016};
       parameter Modelica.Units.SI.Temperature T=973.15;
       Real k1=ArrheniusEquation(
@@ -996,8 +1061,15 @@
       Real R_H2;
       Real R_CH4;
       Real R_C2H6;
+      Concentration C[GasSpecies](min=0) "GasSpecies concentrations";
+      MolarFlowRate flueGas[GasSpecies](min=0);
+      MolarFlowRate flueGas_out[GasSpecies];
+      MolarFlowRate flueGas_out_total;
+      HeatFlowRate h;
+      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a
+        annotation (Placement(transformation(extent={{-10,-110},{10,-90}})));
     initial equation
-      C = {10,50,10,10,10,0,0};
+      C = {0.001,0,0,0,0,0,0};
     equation
 
     //   R_CO = k1*C[CO]*C[O2]^0.5*C[H2O]^0.5;
@@ -1005,12 +1077,12 @@
     //   R_CH4 = k3*C[CH4]^0.7*C[O2]^0.8;
     //   R_C2H6 = k4*C[C2H6]*C[O2];
 
-    //   fluegas = 1.5*y./mm;
-      for i in 1:size(fluegas,1) loop
+    //   flueGas = 1.5*y./mm;
+      for i in 1:size(flueGas,1) loop
         if i <> 2 then
-          fluegas[i] = 1.5*y[i]/mm[i];
+          flueGas[i] = 1.5*y[i]/mm[i];
         else
-          fluegas[i] = (fluegas[CH4]*2 + fluegas[C2H6]*3.5 + fluegas[CO]*0.5 + fluegas[H2]*0.5)*1.2;
+          flueGas[i] = (flueGas[CH4]*2 + flueGas[C2H6]*3.5 + flueGas[CO]*0.5 + flueGas[H2]*0.5)*1.2;
         end if;
       end for;
       if noEvent(C[CO] <= 1e-6 or C[O2] <= 1e-6) then
@@ -1037,13 +1109,25 @@
         R_C2H6 = min(k4*C[C2H6]*C[O2],1279);
       end if;
 
-      der(C[CO]) = -R_CO + R_CH4 + 2*R_C2H6 + fluegas[CO];
-      der(C[H2]) = -R_H2 + fluegas[H2];
-      der(C[CH4]) = -R_CH4 + fluegas[CH4];
-      der(C[O2]) = -R_CO/2 - R_H2/2 - R_CH4*1.5 - R_C2H6*2.5 + fluegas[O2] - C[O2];
-      der(C[CO2]) = R_CO + fluegas[CO2] - C[CO2];
-      der(C[H2O]) = R_H2 + R_CH4*2 + R_C2H6*3 + fluegas[H2O] - C[H2O];
-      der(C[C2H6]) = -R_C2H6 + fluegas[C2H6];
+      flueGas_out = C / 4;
+      flueGas_out_total = sum(flueGas_out);
+      der(C[CO]) = -R_CO + R_CH4 + 2*R_C2H6 + flueGas[CO] - flueGas_out[CO];
+      der(C[H2]) = -R_H2 + flueGas[H2] - flueGas_out[H2];
+      der(C[CH4]) = -R_CH4 + flueGas[CH4] - flueGas_out[CH4];
+      der(C[O2]) = -R_CO/2 - R_H2/2 - R_CH4*1.5 - R_C2H6*2.5 + flueGas[O2] - flueGas_out[O2];
+      der(C[CO2]) = R_CO + flueGas[CO2] - C[CO2] - flueGas_out[CO2];
+      der(C[H2O]) = R_H2 + R_CH4*2 + R_C2H6*3 + flueGas[H2O] - C[H2O] - flueGas_out[H2O];
+      der(C[C2H6]) = -R_C2H6 + flueGas[C2H6] - flueGas_out[C2H6];
+
+      h = R_CO*h_CO + R_H2*h_H2 + R_CH4*h_CH4 + R_C2H6*h_C2H6;
+      mf = C.*mm/sum(C.*mm);
+      flueGasObject.T = t;
+      flueGasObject.p = p;
+      flueGasObject.X = flueGas.*mm/sum(flueGas.*mm);
+      port_a.T = t;
+      der(t)*flueGasObject.cp*sum(flueGas.*mm) + port_a.Q_flow = h;
+
+
 
       //   der(C[CO]) = -k1*C[CO]*C[O2]^0.5*C[H2O]^0.5 + k3*C[CH4]^0.7*C[O2]^0.8 + 2*k4*C[C2H6]*C[O2];
       //   der(C[H2]) = -k2*C[H2]^1.5*C[O2];
@@ -1090,19 +1174,103 @@
       constant GasSpecies H2O=GasSpecies.H2O;
     public
       Modelica.Units.SI.MassFraction y[GasSpecies](min=0);
-      Real t;
     equation
       y[O2] = 0;
       y[CO2] = 0.143;
       y[CH4] = 0.1537;
       y[H2O] = 0.131;
     //   y[H2] = 0.02;
-      sum(y) = t;
       y[CO]*MW_C/MW_CO + y[CO2]*MW_C/MW_CO2 + y[CH4]*MW_C/MW_CH4 + y[C2H6]*MW_C*2/MW_C2H6 = 0.42;
       y[CO]*MW_O/MW_CO + y[CO2]*MW_O*2/MW_CO2 + y[H2O]*MW_O/MW_H2O = 0.51;
       y[CH4]*MW_H*4/MW_CH4 + y[C2H6]*MW_H*6/MW_C2H6 + y[H2O]*MW_H*2/MW_H2O + y[H2]*MW_H*2/MW_H2 = 0.07;
 
     end Vol;
+
+    model Unnamed2
+      SubSystem.BedUnits bedUnits
+        annotation (Placement(transformation(extent={{36,-48},{56,-28}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation(Gr=0.4)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={28,4})));
+      Components.BoundaryConditions.FuelSource               fuelSource[10](
+        variable_m_flow=true,
+        variable_T=false,
+        variable_components=false) annotation (Placement(transformation(origin={-2,-32},
+                           extent={{-10,-10},{10,10}})));
+      Modelica.Blocks.Sources.Constant const[10](k=0.22075)
+        annotation (Placement(transformation(origin={-74,-16},
+    extent={{-10,-10},{10,10}})));
+      Components.GasCombustion gasCombustion
+        annotation (Placement(transformation(extent={{34,32},{54,52}})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T=773.15)
+        annotation (Placement(transformation(extent={{-74,34},{-54,54}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1(Gr=2.3)
+        annotation (Placement(transformation(extent={{-14,32},{6,52}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation2(Gr=0.6783)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=0,
+            origin={86,24})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature1(T=383.15)
+        annotation (Placement(transformation(extent={{80,-30},{100,-10}})));
+    equation
+      connect(bodyRadiation.port_b, bedUnits.port_up) annotation (Line(points={{28,-6},{
+              28,-22},{46,-22},{46,-28.2}}, color={191,0,0}));
+      connect(fuelSource.fuel_outlet, bedUnits.fuel_inlet) annotation (Line(points={{8,
+              -32},{30,-32},{30,-35.2},{36,-35.2}}, color={0,0,0}));
+      connect(const.y, fuelSource.m_flow) annotation (Line(points={{-63,-16},{-20,-16},{
+              -20,-26},{-12,-26}}, color={0,0,127}));
+      connect(gasCombustion.port_a, bodyRadiation.port_a)
+        annotation (Line(points={{44,32},{44,14},{28,14}}, color={191,0,0}));
+      connect(gasCombustion.flueGas_inlet, bedUnits.flueGas_outlet) annotation (Line(
+          points={{49,32},{48,32},{48,-22},{52,-22},{52,-28.2}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(fixedTemperature.port, bodyRadiation1.port_a)
+        annotation (Line(points={{-54,44},{-54,42},{-14,42}}, color={191,0,0}));
+      connect(gasCombustion.port_a, bodyRadiation2.port_a) annotation (Line(points={{44,
+              32},{56,32},{56,28},{76,28},{76,24}}, color={191,0,0}));
+      connect(fixedTemperature1.port, bodyRadiation2.port_b) annotation (Line(points={{
+              100,-20},{102,-20},{102,24},{96,24}}, color={191,0,0}));
+      connect(bodyRadiation1.port_b, gasCombustion.port_a) annotation (Line(points={{6,42},
+              {28,42},{28,24},{44,24},{44,32}}, color={191,0,0}));
+      annotation (
+        Icon(coordinateSystem(preserveAspectRatio=false)),
+        Diagram(coordinateSystem(preserveAspectRatio=false)),
+        experiment(
+          StopTime=5000,
+          Interval=0.02,
+          Tolerance=1e-07,
+          __Dymola_Algorithm="Dassl"));
+    end Unnamed2;
+
+    model Unnamed3
+      Modelica.Fluid.Pipes.DynamicPipe pipe1(
+        redeclare package Medium = Modelica.Media.Air.DryAirNasa,
+        length=0.2,
+        diameter=0.6865,
+        height_ab=0,
+        p_b_start=99999.99999999999*(1e5 - 45),
+        use_HeatTransfer=false,
+        redeclare model HeatTransfer =
+            Modelica.Fluid.Pipes.BaseClasses.HeatTransfer.LocalPipeFlowHeatTransfer)
+        annotation (Placement(transformation(extent={{-14,-62},{6,-42}})));
+      Modelica.Fluid.Sources.Boundary_pT boundary(redeclare package Medium =
+            Modelica.Media.Air.DryAirNasa, nPorts=1)
+        annotation (Placement(transformation(extent={{-66,-62},{-46,-42}})));
+    equation
+      connect(boundary.ports[1], pipe1.port_a)
+        annotation (Line(points={{-46,-52},{-14,-52}}, color={0,127,255}));
+      annotation (
+        Icon(coordinateSystem(preserveAspectRatio=false)),
+        Diagram(coordinateSystem(preserveAspectRatio=false)),
+        experiment(
+          StopTime=10,
+          Interval=0.002,
+          __Dymola_Algorithm="Dassl"));
+    end Unnamed3;
   end Test;
 
   package Components
@@ -1173,13 +1341,12 @@
         BiomassBoiler.Components.HeatCapacities.HeatCapacitorWithNoEnergyEquation;
       extends Modelica.Blocks.Icons.Block;
 
-      parameter Length width = 3.7 "炉排宽度";
+
       Length length "炉排单元长度";
       //Real V_fuel;
-      parameter Velocity v = 15 "炉排速度m/h";
-      parameter Real tao = 24 "停留时间";
+
       Real cp "燃料比热容";
-      parameter Mass m_0 = 1 "初始燃料质量";
+
 
 
       BiomassBoiler.Basics.Interfaces.Fuel_inlet fuel_in annotation (Placement(transformation(origin={-110,0},
@@ -1187,7 +1354,7 @@
       BiomassBoiler.Basics.Interfaces.Fuel_outlet fuel_out annotation (Placement(
       transformation(extent={{100,-10},{120,10}})));
       parameter Integer n = 4 "Number of input、output";
-      Mass m_sj[n](start = {0.149, 0.6797, 0.1423, 0.029} * m_0) "区域各种组分质量，水分、挥发分、固定碳、灰分";
+      Mass m_sj[n](start = {0.149, 0.6797, 0.1423, 0.029} * m_0,min=0) "区域各种组分质量，水分、挥发分、固定碳、灰分";
       Mass m "体积内物质总质量";
       Height bedHeight "床层高度";
       MassFlowRate m_sj_in[n];
@@ -1204,7 +1371,11 @@
 
 
     protected
-      constant HeatCapacity LHW = 1993470 "水的汽化潜热";
+      constant HeatCapacity LHW = 2260000 "水的汽化潜热";
+      parameter Length width = 3.7 "炉排宽度";
+      parameter Velocity v = 15 "炉排速度m/h";
+      parameter Real tao = 24 "停留时间";
+      parameter Mass m_0 = 1 "初始燃料质量";
 
     initial equation
 
@@ -1240,7 +1411,6 @@
       der(m_sj[4]) = m_sj_in[4] - m_sj_out[4];
 
       // 能量平衡
-      //C = cp * m / (n_units + 1) "热容计算J/K";
       cp = BiomassBoiler.Functions.Cp_biomass(fuel_in.components, fuel_in.T);
       C = cp * m;
       Q_fuel_h = cp * fuel_in.m_flow * (fuel_in.T - T) / tao;
@@ -1259,6 +1429,166 @@
 
 
     end BedCombustion;
+
+    model GasCombustion
+      import BiomassBoiler.Functions.ArrheniusEquation;
+      import Modelica.Units.SI.MolarFlowRate;
+      import Modelica.Units.SI.MolarMass;
+      import Modelica.Units.SI.Concentration;
+      import Modelica.Units.SI.HeatFlowRate;
+      import Modelica.Units.SI.HelmholtzFreeEnergy;
+      import Modelica.Units.SI.Temperature;
+      import BiomassBoiler.Basics.GasSpecies;
+      import Modelica.Units.SI.Mass;
+
+    protected
+      constant GasSpecies CO=GasSpecies.CO;
+      constant GasSpecies O2=GasSpecies.O2;
+      constant GasSpecies H2=GasSpecies.H2;
+      constant GasSpecies CH4=GasSpecies.CH4;
+      constant GasSpecies C2H6=GasSpecies.C2H6;
+      constant GasSpecies CO2=GasSpecies.CO2;
+      constant GasSpecies H2O=GasSpecies.H2O;
+
+      constant Real h_CO(unit="J/mol") = 283000 "标准摩尔反应焓";
+      constant Real h_H2(unit="J/mol") = 241800 "标准摩尔反应焓";
+      constant Real h_CH4(unit="J/mol") = 519500 "标准摩尔反应焓";
+      constant Real h_C2H6(unit="J/mol") = 862400 "标准摩尔反应焓";
+
+      constant MolarMass mm[GasSpecies] = {0.02801,0.032,0.002016,0.016042,0.030068,0.04401,0.018016};
+
+      parameter Modelica.Units.SI.Temperature T=973.15;
+
+      Real k1=ArrheniusEquation(
+          3.25*10^7,
+          15098*8.314,
+          T);
+      Real k2=ArrheniusEquation(
+          51.8,
+          3420*8.314,
+          T)*T^1.5;
+      Real k3=ArrheniusEquation(
+          1.585*10^10,
+          24157*8.314,
+          T);
+      Real k4=ArrheniusEquation(
+          2.67*10^8,
+          20131*8.314,
+          T)*T^0.5;
+
+    //   BiomassBoiler.Components.FlueGasObject flueGasObject;
+    public
+      Temperature t;
+    //   parameter Real p = 1.0133e5;
+      Modelica.Units.SI.MassFraction mf[GasSpecies];
+      //Modelica.Units.SI.MassFraction y[GasSpecies](min=0);
+      Real R_CO;
+      Real R_H2;
+      Real R_CH4;
+      Real R_C2H6;
+      Concentration C[GasSpecies](min=0) "GasSpecies concentrations";
+      MolarFlowRate flueGas[GasSpecies](min=0);
+      MolarFlowRate flueGas_out[GasSpecies];
+      MolarFlowRate flueGas_out_total;
+      HeatFlowRate Q_combustion;
+      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a
+        annotation (Placement(transformation(extent={{-10,-110},{10,-90}})));
+      Basics.Interfaces.FlueGas_inlet flueGas_inlet
+        annotation (Placement(transformation(extent={{40,-110},{60,-90}})));
+      Mass mass_of_fluegas;
+    initial equation
+      C = {0.01,0,0,0,0,0,0};
+      t = 693.15;
+    equation
+
+      for i in 1:size(flueGas,1) loop
+        if i <> 2 then
+          flueGas[i] = flueGas_inlet.m_flow*flueGas_inlet.composition[i]/mm[i];
+        else
+          flueGas[i] = (flueGas[CH4]*2 + flueGas[C2H6]*3.5 + flueGas[CO]*0.5 + flueGas[H2]*0.5)*1.2;
+        end if;
+      end for;
+      if noEvent(C[CO] <= 1e-5 or C[O2] <= 1e-5) then
+        R_CO = 0;
+      else
+        R_CO = k1*C[CO]*C[O2]^0.5*C[H2O]^0.5;
+      end if;
+
+      if noEvent(C[H2] <= 1e-5 or C[O2] <= 1e-5) then
+        R_H2 = 0;
+      else
+        R_H2 = min(k2*C[H2]^1.5*C[O2], 1279);
+      end if;
+
+      if noEvent(C[CH4] <= 1e-5 or C[O2] <= 1e-5) then
+        R_CH4 = 0;
+      else
+        R_CH4 = k3*C[CH4]^0.7*C[O2]^0.8;
+      end if;
+
+      if noEvent(C[C2H6] <= 1e-5 or C[O2] <= 1e-5) then
+        R_C2H6 = 0;
+      else
+        R_C2H6 = min(k4*C[C2H6]*C[O2],1279);
+      end if;
+
+      flueGas_out = C / 20;
+      flueGas_out_total = sum(flueGas_out);
+      der(C[CO]) = -R_CO + R_CH4 + 2*R_C2H6 + flueGas[CO] - flueGas_out[CO];
+      der(C[H2]) = -R_H2 + flueGas[H2] - flueGas_out[H2];
+      der(C[CH4]) = -R_CH4 + flueGas[CH4] - flueGas_out[CH4];
+      der(C[O2]) = -R_CO/2 - R_H2/2 - R_CH4*1.5 - R_C2H6*2.5 + flueGas[O2] - flueGas_out[O2];
+      der(C[CO2]) = R_CO + flueGas[CO2] - C[CO2] - flueGas_out[CO2];
+      der(C[H2O]) = R_H2 + R_CH4*2 + R_C2H6*3 + flueGas[H2O] - C[H2O] - flueGas_out[H2O];
+      der(C[C2H6]) = -R_C2H6 + flueGas[C2H6] - flueGas_out[C2H6];
+
+      //气体燃烧放热
+      Q_combustion = R_CO*h_CO + R_H2*h_H2 + R_CH4*h_CH4 + R_C2H6*h_C2H6;
+
+
+      mf = C.*mm/sum(C.*mm);
+    //   flueGasObject.T = t;
+    //   flueGasObject.p = p;
+      mass_of_fluegas = sum(flueGas.*mm);
+    //   flueGasObject.X = flueGas.*mm/sum(flueGas.*mm);
+      port_a.T = t;
+      der(t)*flueGas_inlet.cp*(sum(flueGas.*mm)+1) = Q_combustion + port_a.Q_flow + flueGas_inlet.cp*flueGas_inlet.m_flow*(flueGas_inlet.T - t);
+
+    end GasCombustion;
+
+    model FlueGasCompositionCal
+      import BiomassBoiler.Basics.GasSpecies;
+    protected
+      constant Real MW_C = 12.01;    // 碳的摩尔质量, kg/kmol
+      constant Real MW_H = 1.008;    // 氢的摩尔质量, kg/kmol
+      constant Real MW_O = 16.00;    // 氧的摩尔质量, kg/kmol
+      constant Real MW_O2 = 32.00;    // O2的摩尔质量, kg/kmol
+      constant Real MW_CO = 28.01;   // CO的摩尔质量, kg/kmol
+      constant Real MW_CO2 = 44.01;  // CO2的摩尔质量, kg/kmol
+      constant Real MW_H2 = 2.016;   // H2的摩尔质量, kg/kmol
+      constant Real MW_CH4 = 16.042; // CH4的摩尔质量, kg/kmol
+      constant Real MW_C2H6 = 30.068; // C2H6的摩尔质量, kg/kmol
+      constant Real MW_H2O = 18.016; // H2O的摩尔质量, kg/kmol
+
+      constant GasSpecies CO=GasSpecies.CO;
+      constant GasSpecies O2=GasSpecies.O2;
+      constant GasSpecies H2=GasSpecies.H2;
+      constant GasSpecies CH4=GasSpecies.CH4;
+      constant GasSpecies C2H6=GasSpecies.C2H6;
+      constant GasSpecies CO2=GasSpecies.CO2;
+      constant GasSpecies H2O=GasSpecies.H2O;
+    public
+      Modelica.Units.SI.MassFraction y[GasSpecies](min=0);
+    equation
+      y[O2] =  0;
+      y[CO2] =  0.143;
+      y[CH4] =  0.1537;
+      y[H2O] =  0.131;
+    //   y[H2] = 0.02;
+      y[CO]*MW_C/MW_CO + y[CO2]*MW_C/MW_CO2 + y[CH4]*MW_C/MW_CH4 + y[C2H6]*MW_C*2/MW_C2H6 =  0.42;
+      y[CO]*MW_O/MW_CO + y[CO2]*MW_O*2/MW_CO2 + y[H2O]*MW_O/MW_H2O =  0.51;
+      y[CH4]*MW_H*4/MW_CH4 + y[C2H6]*MW_H*6/MW_C2H6 + y[H2O]*MW_H*2/MW_H2O + y[H2]*MW_H*2/MW_H2 =  0.07;
+    end FlueGasCompositionCal;
 
     package HeatCapacities
       model HeatCapacitorWithNoEnergyEquation
@@ -1496,7 +1826,7 @@
 
         parameter MassFlowRate m_flow_const = 2.2075 "Constant mass flow rate" annotation (Dialog(group="Constant Boundaries", enable=not variable_m_flow));
         parameter Temperature T_const = 293.15 "Constant specific temperature of source" annotation (Dialog(group="Constant Boundaries", enable=not variable_T));
-        parameter MassFraction components_const[4] = {0.149, 0.6797, 0.1423, 0.029} "Constant composition" annotation (Dialog(group="Constant Boundaries", enable=not variable_xi));
+        parameter MassFraction components_const[4] = {0.001, 0.6797, 0.1423, 0.029} "Constant composition" annotation (Dialog(group="Constant Boundaries", enable=not variable_xi));
 
       protected
         MassFlowRate m_flow_in;
@@ -1584,16 +1914,18 @@
 
 
       input SI.Temperature T "Temperature";
-      input MassFraction X[6] "Composition";
+      input MassFraction X[7] "Composition";
       input SI.Pressure p "Pressure";
 
       package Medium = Modelica.Media.IdealGases.Common.MixtureGasNasa (
           mediumName="ExhaustGas",
-          data={Common.SingleGasesData.CO,Common.SingleGasesData.CO2,Common.SingleGasesData.H2,
-              Common.SingleGasesData.CH4,Common.SingleGasesData.C2H6,Common.SingleGasesData.H2O},
-          fluidConstants={Common.FluidData.O2,Common.FluidData.CO2,Common.FluidData.H2,
-              Common.FluidData.CH4,Common.FluidData.C2H6,Common.FluidData.H2O},
-          substanceNames={"CO", "CO2", "H2", "CH4", "C2H6", "H2O"});
+          data={Common.SingleGasesData.CO,Common.SingleGasesData.O2,Common.SingleGasesData.H2,
+              Common.SingleGasesData.CH4,Common.SingleGasesData.C2H6,Common.SingleGasesData.CO2,
+              Common.SingleGasesData.H2O},
+          fluidConstants={Common.FluidData.CO,Common.FluidData.O2,Common.FluidData.H2,
+              Common.FluidData.CH4,Common.FluidData.C2H6,Common.FluidData.CO2,
+              Common.FluidData.H2O},
+          substanceNames={"CO","O2","H2","CH4","C2H6","CO2","H2O"});
 
       Medium.BaseProperties medium(
         T,
@@ -1758,6 +2090,10 @@
             origin={0,-16})));
       Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation[n_units-1](Gr=0.37)
         annotation (Placement(transformation(extent={{32,-26},{52,-6}})));
+      Basics.Interfaces.FlueGas_outlet flueGas_outlet "流出烟气"
+        annotation (Placement(transformation(extent={{50,88},{70,108}})));
+      BiomassBoiler.Components.FlueGasCompositionCal flueGasComposition;
+      BiomassBoiler.Components.FlueGasObject flueGasObject;
     equation
       connect(bedCombustion[1].port_up, port_up);
       connect(bedCombustion[n_units].port_down, port_down);
@@ -1773,6 +2109,17 @@
       fuel_in_total = sum(bedCombustion.fuel_in.m_flow);
       fuel_out_total = sum(bedCombustion.fuel_out.m_flow);
       bedHeight = sum(bedCombustion.bedHeight);
+
+      //计算挥发分属性
+      flueGasObject.T = bedCombustion[1].T;
+      flueGasObject.p = 1.0133e5;
+      flueGasObject.X = flueGasComposition.y;
+
+      //挥发分接口
+      flueGas_outlet.m_flow = sum(bedCombustion.R_vol);
+      flueGas_outlet.composition = flueGasComposition.y;
+      flueGas_outlet.T = bedCombustion[1].T;
+      flueGas_outlet.cp = flueGasObject.cp;
     end BedUnits;
 
     model Unnamed2
@@ -1979,5 +2326,5 @@
     package SolidPhase
     end SolidPhase;
   end ChemicalReactions;
-  annotation (uses(Modelica(version="4.0.0")));
+  annotation (uses(Modelica(version="4.0.0"), ClaRaPlus(version="1.6.0")));
 end BiomassBoiler;
