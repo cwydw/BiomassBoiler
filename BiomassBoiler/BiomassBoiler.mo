@@ -48,10 +48,10 @@
       input Modelica.Units.SI.Temperature T;
       output Modelica.Units.SI.DiffusionCoefficient D;
     algorithm
-      D := 0.207*10^(-4)*(T/300)^1.75;
+      D := 0.207e-4*(T/300)^1.75;
     end DiffusionCoef_O2;
 
-    function R_mix "床层气体混合速率"
+    function R_mix_cal "床层气体混合速率"
       import BiomassBoiler.Units.ConcentrationRate;
       import Modelica.Units.SI;
 
@@ -68,7 +68,7 @@
     algorithm
       R_mix := 0.83*(150*D_g*(1 - epsilon)^(2/3)/(d_p^2*epsilon) + 1.75*u_g*(1 -
         epsilon)^(1/3)/(d_p*epsilon))*min(C_i/omega_i, C_o2/omega_o2);
-    end R_mix;
+    end R_mix_cal;
 
     function DiffusionCoef
       import SIUnits = Modelica.Units.SI;
@@ -159,6 +159,35 @@
       input Real x;
       output Real y;
     end Integrand;
+
+    function DiffusionCoef_FlueGas
+      import BiomassBoiler.Basics.GasSpecies;
+      import Modelica.Units.SI;
+      import BiomassBoiler.Functions.Weighted_Average;
+      import BiomassBoiler.Functions.DiffusionCoef;
+
+      input SI.Temperature T;
+      input SI.Pressure p;
+      input SI.VolumeFraction X[GasSpecies];
+      output SI.DiffusionCoefficient D_mix;
+
+
+    protected
+      parameter SI.Temperature T_ref = 293.15;
+      parameter SI.Pressure p_ref = 101325;
+      parameter SI.DiffusionCoefficient D_ref[GasSpecies] = {0.176,0.178,0.634,0.219,0.164,0.138,0.282,0.178}*10^(-4);
+      SI.DiffusionCoefficient D[GasSpecies];
+    algorithm
+      for i in GasSpecies loop
+        D[i] :=DiffusionCoef(
+          T=T,
+          T_ref=T_ref,
+          p=p,
+          p_ref=p_ref,
+          D_ref=D_ref[i]);
+      end for;
+      D_mix := Weighted_Average(X, D);
+    end DiffusionCoef_FlueGas;
   end Functions;
 
   package Units
@@ -166,6 +195,8 @@
     type ConcentrationRate = Real (final quantity="ConcentrationRate", final unit=
             "mol/(m3.s)");
     type Rate = Real (final quantity="Rate", final unit="s-1");
+    type MolarReactionRate = Real (final quantity="MolarReactionRate", final unit=
+           "mol/(m3.s)");
   end Units;
 
   package Basics
@@ -230,12 +261,14 @@
         import Modelica.Units.SI.SpecificHeatCapacity;
         import BiomassBoiler.Units.MassFraction;
         import Modelica.Units.SI.Velocity;
+        import Modelica.Units.SI.Density;
         import BiomassBoiler.Basics.GasSpecies;
 
         MassFlowRate m_flow "flueGas mass flow rate";
         Temperature T "flueGas temperature";
         MassFraction composition[GasSpecies] "烟气组成";
         SpecificHeatCapacity cp "烟气比热容";
+        Density rho "烟气密度";
 
         annotation (   Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},
                   {100,100}}),
@@ -323,12 +356,14 @@
 
     model Model4
       import BiomassBoiler.Components.BedCombustion;
-      BedCombustion bedCombustion(n=4,
-        tao=24,
+      BedCombustion bedCombustion(
+        tau=60,
+        m_0=40,                   n=4,
         T(start=293.15))
         annotation (Placement(transformation(origin = {-80.000000, 10.000000}, extent = {{-10.000000, -10.000000}, {10.000000, 10.000000}})));
-      BedCombustion bedCombustion1(n=4,
-        tao=24,
+      BedCombustion bedCombustion1(
+        tau=60,
+        m_0=40,                    n=4,
         T(start=293.15))
         annotation (Placement(transformation(origin={-36,10},
     extent={{-10,-10},{10,10}})));
@@ -343,22 +378,23 @@
       BiomassBoiler.Components.Sources.FuelSource fuelSource(
         variable_m_flow=true,
         variable_T=false,
-        variable_components=false) annotation (Placement(transformation(origin={-122,10},
+        variable_components=false,
+        T_const=313.15)            annotation (Placement(transformation(origin={-122,10},
               extent={{-10,-10},{10,10}})));
       Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature1(T(
             displayUnit="degC") = 473.15)
         annotation (Placement(transformation(origin={-36,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation3(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation3(Gr=2.775)
         annotation (Placement(transformation(origin={-36,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1(Gr=2.775)
         annotation (Placement(transformation(origin={-80,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation(Gr=2.775)
         annotation (Placement(transformation(origin={8,58},
     extent={{-10,-10},{10,10}},
     rotation=90)));
@@ -368,10 +404,10 @@
     extent={{10,-10},{-10,10}},
     rotation=90)));
 
-      BedCombustion bedCombustion2
+      BedCombustion bedCombustion2(tau=60, m_0=40)
         annotation (Placement(transformation(origin={8,10},
     extent={{-10,-10},{10,10}})));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation2(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation2(Gr=2.775)
         annotation (Placement(transformation(origin={52,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -380,10 +416,10 @@
         annotation (Placement(transformation(origin={52,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Components.BedCombustion bedCombustion3
+      Components.BedCombustion bedCombustion3(tau=60, m_0=40)
         annotation (Placement(transformation(origin={52,10.000000000000004},
     extent={{-10,-10},{10,10}})),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation4(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation4(Gr=2.775)
         annotation (Placement(transformation(origin={96,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -392,10 +428,10 @@
         annotation (Placement(transformation(origin={96,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Components.BedCombustion bedCombustion4
+      Components.BedCombustion bedCombustion4(tau=60, m_0=40)
         annotation (Placement(transformation(origin={96,10},
     extent={{-10,-10},{10,10}})),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation5(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation5(Gr=2.775)
         annotation (Placement(transformation(origin={140,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -404,10 +440,10 @@
         annotation (Placement(transformation(origin={140,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Components.BedCombustion bedCombustion5
+      Components.BedCombustion bedCombustion5(tau=60, m_0=40)
         annotation (Placement(transformation(origin={140,10},
     extent={{-10,-10},{10,10}})),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation6(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation6(Gr=2.775)
         annotation (Placement(transformation(origin={184,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -416,10 +452,10 @@
         annotation (Placement(transformation(origin={184,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Components.BedCombustion bedCombustion6
+      Components.BedCombustion bedCombustion6(tau=60, m_0=40)
         annotation (Placement(transformation(origin={184,10},
     extent={{-10,-10},{10,10}})),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation7(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation7(Gr=2.775)
         annotation (Placement(transformation(origin={228,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -428,10 +464,10 @@
         annotation (Placement(transformation(origin={228,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Components.BedCombustion bedCombustion7
+      Components.BedCombustion bedCombustion7(tau=60, m_0=40)
         annotation (Placement(transformation(origin={228,10},
     extent={{-10,-10},{10,10}})),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation8(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation8(Gr=2.775)
         annotation (Placement(transformation(origin={272,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -440,10 +476,10 @@
         annotation (Placement(transformation(origin={272,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Components.BedCombustion bedCombustion8
+      Components.BedCombustion bedCombustion8(tau=60, m_0=40)
         annotation (Placement(transformation(origin={272,10},
     extent={{-10,-10},{10,10}})),__MWORKS(BlockSystem(StateMachine)));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation9(Gr=4.44)
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation9(Gr=2.775)
         annotation (Placement(transformation(origin={316,58},
     extent={{-10,-10},{10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
@@ -452,9 +488,11 @@
         annotation (Placement(transformation(origin={316,106},
     extent={{10,-10},{-10,10}},
     rotation=90)),__MWORKS(BlockSystem(StateMachine)));
-      Components.BedCombustion bedCombustion9
+      Components.BedCombustion bedCombustion9(tau=60, m_0=40)
         annotation (Placement(transformation(origin={316,10},
     extent={{-10,-10},{10,10}})),__MWORKS(BlockSystem(StateMachine)));
+      Components.Sources.AirSource airSource(V_flow_const=0.81)
+        annotation (Placement(transformation(extent={{-108,-24},{-88,-4}})));
     equation
 
 
@@ -546,22 +584,6 @@
       annotation(Line(origin={-110,10},
     points={{-2,0},{19,0}},
     color={0,0,0}));
-      connect(bodyRadiation3.port_b, fixedTemperature1.port)
-      annotation(Line(origin={39,-20},
-    points={{-75,88},{-75,116}},
-    color={191,0,0}));
-      connect(bodyRadiation3.port_a, bedCombustion1.port_b)
-      annotation(Line(origin={-36,34},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(fixedTemperature.port, bodyRadiation1.port_b)
-      annotation(Line(origin={-80,78},
-    points={{0,18},{0,-10}},
-    color={191,0,0}));
-      connect(bodyRadiation1.port_a, bedCombustion.port_b)
-      annotation(Line(origin={-80,34},
-      points={{0,14},{0,-14}},
-      color={191,0,0}));
       connect(const.y, fuelSource.m_flow)
       annotation(Line(origin={-152,22},
       points={{-21,6},{20,6},{20,-6}},
@@ -574,70 +596,6 @@
       annotation(Line(origin={1,10},
     points={{-26,0},{-4,0}},
     color={0,0,0}));
-      connect(bodyRadiation.port_a, bedCombustion2.port_b)
-      annotation(Line(origin={17,39},
-    points={{-9,9},{-9,-19}},
-    color={191,0,0}));
-      connect(fixedTemperature2.port, bodyRadiation.port_b)
-      annotation(Line(origin={8,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(bodyRadiation2.port_a, bedCombustion3.port_b)
-      annotation(Line(origin={61,39},
-    points={{-9,9},{-9,-18.999999999999996}},
-    color={191,0,0}));
-      connect(fixedTemperature3.port, bodyRadiation2.port_b)
-      annotation(Line(origin={52,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(bodyRadiation4.port_a, bedCombustion4.port_b)
-      annotation(Line(origin={105,39},
-    points={{-9,9},{-9,-19}},
-    color={191,0,0}));
-      connect(fixedTemperature4.port, bodyRadiation4.port_b)
-      annotation(Line(origin={96,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(bodyRadiation5.port_a, bedCombustion5.port_b)
-      annotation(Line(origin={149,39},
-    points={{-9,9},{-9,-19}},
-    color={191,0,0}));
-      connect(fixedTemperature5.port, bodyRadiation5.port_b)
-      annotation(Line(origin={140,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(bodyRadiation6.port_a, bedCombustion6.port_b)
-      annotation(Line(origin={193,39},
-    points={{-9,9},{-9,-19}},
-    color={191,0,0}));
-      connect(fixedTemperature6.port, bodyRadiation6.port_b)
-      annotation(Line(origin={184,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(bodyRadiation7.port_a, bedCombustion7.port_b)
-      annotation(Line(origin={237,39},
-    points={{-9,9},{-9,-19}},
-    color={191,0,0}));
-      connect(fixedTemperature7.port, bodyRadiation7.port_b)
-      annotation(Line(origin={228,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(bodyRadiation8.port_a, bedCombustion8.port_b)
-      annotation(Line(origin={281,39},
-    points={{-9,9},{-9,-19}},
-    color={191,0,0}));
-      connect(fixedTemperature8.port, bodyRadiation8.port_b)
-      annotation(Line(origin={272,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
-      connect(bodyRadiation9.port_a, bedCombustion9.port_b)
-      annotation(Line(origin={325,39},
-    points={{-9,9},{-9,-19}},
-    color={191,0,0}));
-      connect(fixedTemperature9.port, bodyRadiation9.port_b)
-      annotation(Line(origin={316,82},
-    points={{0,14},{0,-14}},
-    color={191,0,0}));
       connect(bedCombustion2.fuel_out, bedCombustion3.fuel_in)
       annotation(Line(origin={30,10},
       points={{-11,0},{11,0},{11,3.552713678800501e-15}},
@@ -666,11 +624,99 @@
       annotation(Line(origin={294,10},
       points={{-11,0},{11,0}},
       color={0,0,0}));
-      annotation(Diagram(coordinateSystem(extent={{-100,-100},{100,100}},
+      connect(airSource.flueGas_outlet, bedCombustion.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion1.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-30,-6},{-30,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion2.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion3.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,-10},{58,-10},
+              {58,3.55271e-15}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion4.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,-10},{58,-10},
+              {58,-6},{102,-6},{102,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion5.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,-10},{58,-10},
+              {58,0},{146,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion6.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,-10},{58,-10},
+              {58,0},{190,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion7.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,-10},{58,-10},
+              {58,0},{234,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion8.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,-10},{58,-10},
+              {58,0},{278,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, bedCombustion9.flueGas_inlet) annotation (Line(
+          points={{-88,-14},{-74,-14},{-74,-6},{-2,-6},{-2,-16},{14,-16},{14,-10},{58,-10},
+              {58,0},{322,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(fixedTemperature.port, bodyRadiation1.port_b)
+        annotation (Line(points={{-80,96},{-80,68}}, color={191,0,0}));
+      connect(fixedTemperature1.port, bodyRadiation3.port_b)
+        annotation (Line(points={{-36,96},{-36,68}}, color={191,0,0}));
+      connect(fixedTemperature2.port, bodyRadiation.port_b)
+        annotation (Line(points={{8,96},{8,68}}, color={191,0,0}));
+      connect(fixedTemperature3.port, bodyRadiation2.port_b)
+        annotation (Line(points={{52,96},{52,68}}, color={191,0,0}));
+      connect(fixedTemperature4.port, bodyRadiation4.port_b)
+        annotation (Line(points={{96,96},{96,68}}, color={191,0,0}));
+      connect(bodyRadiation1.port_a, bedCombustion.port_up)
+        annotation (Line(points={{-80,48},{-80,20}}, color={191,0,0}));
+      connect(bodyRadiation3.port_a, bedCombustion1.port_up)
+        annotation (Line(points={{-36,48},{-36,20}}, color={191,0,0}));
+      connect(bodyRadiation.port_a, bedCombustion2.port_up)
+        annotation (Line(points={{8,48},{8,20}}, color={191,0,0}));
+      connect(bodyRadiation2.port_a, bedCombustion3.port_up)
+        annotation (Line(points={{52,48},{52,20}}, color={191,0,0}));
+      connect(bodyRadiation4.port_a, bedCombustion4.port_up)
+        annotation (Line(points={{96,48},{96,20}}, color={191,0,0}));
+      connect(bodyRadiation5.port_a, bedCombustion5.port_up)
+        annotation (Line(points={{140,48},{140,20}}, color={191,0,0}));
+      connect(bodyRadiation6.port_a, bedCombustion6.port_up)
+        annotation (Line(points={{184,48},{184,20}}, color={191,0,0}));
+      connect(bodyRadiation7.port_a, bedCombustion7.port_up)
+        annotation (Line(points={{228,48},{228,20}}, color={191,0,0}));
+      connect(bodyRadiation8.port_a, bedCombustion8.port_up)
+        annotation (Line(points={{272,48},{272,20}}, color={191,0,0}));
+      connect(bodyRadiation9.port_a, bedCombustion9.port_up)
+        annotation (Line(points={{316,48},{316,20}}, color={191,0,0}));
+      connect(fixedTemperature5.port, bodyRadiation5.port_b)
+        annotation (Line(points={{140,96},{140,68}}, color={191,0,0}));
+      connect(fixedTemperature6.port, bodyRadiation6.port_b)
+        annotation (Line(points={{184,96},{184,68}}, color={191,0,0}));
+      connect(fixedTemperature7.port, bodyRadiation7.port_b)
+        annotation (Line(points={{228,96},{228,68}}, color={191,0,0}));
+      connect(fixedTemperature8.port, bodyRadiation8.port_b)
+        annotation (Line(points={{272,96},{272,68}}, color={191,0,0}));
+      connect(fixedTemperature9.port, bodyRadiation9.port_b)
+        annotation (Line(points={{316,96},{316,68}}, color={191,0,0}));
+      annotation(Diagram(coordinateSystem(extent={{-100,-80},{380,160}},
     grid={2,2})), experiment(
           StopTime=1000,
-          __Dymola_NumberOfIntervals=1000,
-          __Dymola_Algorithm="Dassl"));
+          Interval=0.05,
+          __Dymola_Algorithm="Dassl"),
+        Icon(coordinateSystem(extent={{-100,-80},{380,160}})));
     end Model4;
 
     model A
@@ -890,52 +936,57 @@
 
     end UseExternalMedia;
 
-    model GasReaction
+    model GasReaction "r_mix"
       import BiomassBoiler.ChemicalReactions.GasPhase.GasSpecies;
       import BiomassBoiler.Functions.DiffusionCoef;
       import BiomassBoiler.Functions.Weighted_Average;
       import BiomassBoiler.Functions.DiffusionCoef_O2;
       import BiomassBoiler.Functions.R_mix;
+      import BiomassBoiler.Functions.DiffusionCoef_FlueGas;
       import Modelica.Units.SI;
-      BiomassBoiler.ChemicalReactions.GasPhase.Solution solution(C(start={10,25,10,10,0,0,0.5}));
-      BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'CO + 1/2 * O2 -> CO2' reaction1;
-      BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'H2 + 1/2 * O2 -> H2O' reaction2;
-      BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'CH4 + 3/2 * O2 -> CO + 2 * H2O' reaction3;
-      Real xi[GasSpecies];
-      Real D_co;
-      Real D_o2;
-      Real D_h2;
-      Real D_ch4;
-      Real D_c2h6;
-      Real D_co2;
-      Real D_h2o;
+    //   BiomassBoiler.ChemicalReactions.GasPhase.Solution solution(C(start={10,25,10,10,0,0,0.5}));
+    //   BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'CO + 1/2 * O2 -> CO2' reaction1;
+    //   BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'H2 + 1/2 * O2 -> H2O' reaction2;
+    //   BiomassBoiler.ChemicalReactions.GasPhase.Reaction.'CH4 + 3/2 * O2 -> CO + 2 * H2O' reaction3;
+    //   Real xi[GasSpecies];
+    //   Real D_co;
+    //   Real D_o2;
+    //   Real D_h2;
+    //   Real D_ch4;
+    //   Real D_c2h6;
+    //   Real D_co2;
+    //   Real D_h2o;
+    //   Real D_n2;
       Real D_mix;
-    //   Real r_mix[7];
       Real r_mix;
-      parameter SI.Pressure p_ref = 1.0133e5;
-      parameter SI.Pressure p = 1.0133e5;
-      parameter SI.Temperature T_ref = 293.15;
-      parameter SI.Temperature T = 1000;
+    //   parameter SI.Pressure p_ref = 1.0133e5;
+      parameter SI.Pressure p = 101325;
+    //   parameter SI.Temperature T_ref = 293.15;
+      parameter SI.Temperature T = 900;
+      BiomassBoiler.Basics.FixedParams fixedParams;
     equation
-      connect(reaction1.mixture, solution.mixture);
-      connect(reaction2.mixture, solution.mixture);
-      connect(reaction3.mixture, solution.mixture);
+    //   connect(reaction1.mixture, solution.mixture);
+    //   connect(reaction2.mixture, solution.mixture);
+    //   connect(reaction3.mixture, solution.mixture);
 
-      D_co = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.208*10^(-4));
-      D_o2 = DiffusionCoef_O2(T);
-      D_h2 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.756*10^(-4));
-      D_ch4 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.21*10^(-4));
-      D_c2h6 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.126*10^(-4));
-      D_co2 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.16*10^(-4));
-      D_h2o = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.242*10^(-4));
-      D_mix = Weighted_Average(xi,{D_co,D_o2,D_h2,D_ch4,D_c2h6,D_co2,D_h2o});
-      xi = solution.C / sum(solution.C);
+    //   D_co = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.176*10^(-4));
+    //   D_o2 = DiffusionCoef_O2(T);
+    //   D_h2 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.634*10^(-4));
+    //   D_ch4 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.219*10^(-4));
+    //   D_c2h6 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.164*10^(-4));
+    //   D_co2 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.138*10^(-4));
+    //   D_h2o = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.282*10^(-4));
+    //   D_n2 = DiffusionCoef(T = T,T_ref = T_ref,p=p,p_ref=p_ref,D_ref= 0.178*10^(-4));
+    //   D_mix = Weighted_Average(fixedParams.X,{D_co,D_o2,D_h2,D_ch4,D_c2h6,D_co2,D_h2o,D_n2});
+    //   xi = solution.C / sum(solution.C);
     //   for i in 1:7 loop
     //     r_mix[i] = R_mix(D_mix,0.01,solution.C[i],solution.C[2],0.22,0.4,1,0.5);
     //   end for;
-      r_mix =  R_mix(1.70219045*10^(-4),0.02,10,5,0.22,0.4,1,0.5);
-      reaction1.R_mix = r_mix;
-      reaction2.R_mix = r_mix;
+      D_mix = DiffusionCoef_FlueGas(T,p,fixedParams.X);
+      r_mix = R_mix(D_mix, 0.02, 0.1, 0.05, 0.22, 0.4, 1, 0.5);
+
+    //   reaction1.R_mix = r_mix;
+    //   reaction2.R_mix = r_mix;
       annotation (experiment(
           StopTime=10,
           __Dymola_NumberOfIntervals=1000,
@@ -1168,90 +1219,160 @@
           __Dymola_Algorithm="Euler"));
     end ReactionTest;
 
-    model Unnamed2
-      SubSystem.BedUnits bedUnits
-        annotation (Placement(transformation(extent={{36,-48},{56,-28}})));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation(Gr=1.2)
+    model Unnamed3
+      Components.Sources.FuelSource fuelSource(
+        m_flow_const=2.2075,
+        T_const=298.15,
+        components_const={0.149,0.6797,0.1423,0.029})
+        annotation (Placement(transformation(extent={{-36,-20},{-16,0}})));
+      Components.Sources.AirSource airSource1(variable_m_flow=true, T_const=298.15)
+        annotation (Placement(transformation(extent={{-10,-52},{10,-32}})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T=1073.15)
+        annotation (Placement(transformation(extent={{-104,38},{-84,58}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation(Gr=8.8)
+        annotation (Placement(transformation(extent={{-60,38},{-40,58}})));
+      Components.BedCombustion bedCombustion(T(start=298.15))
+        annotation (Placement(transformation(extent={{-2,-20},{18,0}})));
+      Modelica.Blocks.Sources.Sine sine(
+        amplitude=0.05,
+        f=0.01,
+        offset=0.108) annotation (Placement(transformation(extent={{-62,-52},{-42,-32}})));
+      Modelica.Blocks.Sources.Constant const(k=0.108)
+        annotation (Placement(transformation(extent={{-62,-84},{-42,-64}})));
+      Components.BedCombustion bedCombustion1(T(start=298.15))
+        annotation (Placement(transformation(extent={{40,-20},{60,0}})));
+      Components.Sources.AirSource airSource2(variable_m_flow=true, T_const=298.15)
+        annotation (Placement(transformation(extent={{28,-52},{48,-32}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1(Gr=8.8)
+        annotation (Placement(transformation(extent={{70,58},{90,78}})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature1(T=1073.15)
+        annotation (Placement(transformation(extent={{34,58},{54,78}})));
+      Components.BedCombustion bedCombustion2(T(start=298.15), mf_0={0.149,0.6797,0.1423,
+            0.029}) annotation (Placement(transformation(extent={{82,-20},{102,0}})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature2(T=1073.15)
         annotation (Placement(transformation(
             extent={{-10,-10},{10,10}},
             rotation=270,
-            origin={28,4})));
-      Components.Sources.FuelSource fuelSource[10](
-        variable_m_flow=true,
-        variable_T=false,
-        variable_components=false) annotation (Placement(transformation(origin={-8,-32},
-              extent={{-10,-10},{10,10}})));
-      Modelica.Blocks.Sources.Constant const[10](k=0.22075)
-        annotation (Placement(transformation(origin={-74,-16},
-    extent={{-10,-10},{10,10}})));
-      Components.GasCombustion gasCombustion
-        annotation (Placement(transformation(extent={{34,32},{54,52}})));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T=1023.15)
-        annotation (Placement(transformation(extent={{-74,34},{-54,54}})));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1(Gr=2.3)
-        annotation (Placement(transformation(extent={{-14,32},{6,52}})));
-      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation2(Gr=0.6783)
+            origin={166,76})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation2(Gr=8.8)
         annotation (Placement(transformation(
             extent={{-10,-10},{10,10}},
-            rotation=0,
-            origin={86,24})));
-      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature1(T=433.15)
-        annotation (Placement(transformation(extent={{80,-30},{100,-10}})));
+            rotation=270,
+            origin={166,36})));
+      Components.Sources.AirSource airSource3(variable_m_flow=true, T_const=298.15)
+        annotation (Placement(transformation(extent={{70,-52},{90,-32}})));
+      Components.GasCombustion gasCombustion(V=0.814, tau=0.05)
+        annotation (Placement(transformation(extent={{0,22},{20,42}})));
+      Components.GasCombustion gasCombustion1(V=0.814, tau=0.05)
+        annotation (Placement(transformation(extent={{40,22},{60,42}})));
+      Components.GasCombustion gasCombustion2(V=0.814, tau=0.05)
+        annotation (Placement(transformation(extent={{100,12},{120,32}})));
+      Components.Sources.AirSource airSource5(
+        variable_m_flow=false,
+        V_flow_const=0,
+        T_const=298.15)
+        annotation (Placement(transformation(extent={{118,-26},{138,-6}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation3(Gr=1.11)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={-26,18})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation4(Gr=1.11)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={154,2})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation5(Gr=1.11)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={28,10})));
     equation
-      connect(bodyRadiation.port_b, bedUnits.port_up) annotation (Line(points={{28,-6},{
-              28,-22},{46,-22},{46,-28.2}}, color={191,0,0}));
-      connect(fuelSource.fuel_outlet, bedUnits.fuel_inlet) annotation (Line(points={{2,
-              -32},{30,-32},{30,-35.2},{36,-35.2}}, color={0,0,0}));
-      connect(const.y, fuelSource.m_flow) annotation (Line(points={{-63,-16},{-20,-16},{
-              -20,-26},{-18,-26}}, color={0,0,127}));
-      connect(gasCombustion.port_a, bodyRadiation.port_a)
-        annotation (Line(points={{44,32},{44,14},{28,14}}, color={191,0,0}));
-      connect(gasCombustion.flueGas_inlet, bedUnits.flueGas_outlet) annotation (Line(
-          points={{54.2,42},{48,42},{48,-22},{52,-22},{52,-28.2}},
-          color={118,106,98},
-          thickness=0.5));
-      connect(fixedTemperature.port, bodyRadiation1.port_a)
-        annotation (Line(points={{-54,44},{-54,42},{-14,42}}, color={191,0,0}));
-      connect(gasCombustion.port_a, bodyRadiation2.port_a) annotation (Line(points={{44,
-              32},{56,32},{56,28},{76,28},{76,24}}, color={191,0,0}));
-      connect(fixedTemperature1.port, bodyRadiation2.port_b) annotation (Line(points={{
-              100,-20},{102,-20},{102,24},{96,24}}, color={191,0,0}));
-      connect(bodyRadiation1.port_b, gasCombustion.port_a) annotation (Line(points={{6,42},
-              {28,42},{28,24},{44,24},{44,32}}, color={191,0,0}));
-      annotation (
-        Icon(coordinateSystem(preserveAspectRatio=false)),
-        Diagram(coordinateSystem(preserveAspectRatio=false)),
-        experiment(
-          StopTime=100,
-          Interval=0.002,
-          __Dymola_fixedstepsize=1e+07,
-          __Dymola_Algorithm="Euler"));
-    end Unnamed2;
-
-    model Unnamed3
-      Components.Sources.FuelSource fuelSource(
-        m_flow_const=0.9,
-        T_const=473.15,
-        components_const={0,0.6797,0.1423,0.029})
-        annotation (Placement(transformation(extent={{-36,-20},{-16,0}})));
-      Components.Sources.AirSource airSource(variable_m_flow=false)
-        annotation (Placement(transformation(extent={{-2,-50},{18,-30}})));
-      Components.BedCombustion bedCombustion(T(start=473.15))
-        annotation (Placement(transformation(extent={{10,-20},{30,0}})));
-    equation
+      connect(fixedTemperature.port, bodyRadiation.port_a)
+        annotation (Line(points={{-84,48},{-60,48}}, color={191,0,0}));
       connect(fuelSource.fuel_outlet, bedCombustion.fuel_in)
-        annotation (Line(points={{-16,-10},{9,-10}}, color={0,0,0}));
-      connect(airSource.flueGas_outlet, bedCombustion.flueGas_inlet) annotation (Line(
-          points={{18,-40},{26,-40},{26,-20}},
+        annotation (Line(points={{-16,-10},{-3,-10}}, color={0,0,0}));
+      connect(airSource1.flueGas_outlet, bedCombustion.flueGas_inlet) annotation (Line(
+          points={{10,-42},{14,-42},{14,-20}},
           color={118,106,98},
           thickness=0.5));
+      connect(const.y, airSource1.m_flow) annotation (Line(points={{-41,-74},{-16,-74},{
+              -16,-36},{-10,-36}}, color={0,0,127}));
+      connect(bedCombustion.fuel_out, bedCombustion1.fuel_in)
+        annotation (Line(points={{19,-10},{39,-10}}, color={0,0,0}));
+      connect(airSource2.flueGas_outlet, bedCombustion1.flueGas_inlet) annotation (Line(
+          points={{48,-42},{56,-42},{56,-20}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(const.y, airSource2.m_flow) annotation (Line(points={{-41,-74},{-16,-74},{
+              -16,-56},{22,-56},{22,-36},{28,-36}}, color={0,0,127}));
+      connect(fixedTemperature1.port, bodyRadiation1.port_a)
+        annotation (Line(points={{54,68},{70,68}}, color={191,0,0}));
+      connect(bedCombustion1.fuel_out, bedCombustion2.fuel_in)
+        annotation (Line(points={{61,-10},{81,-10}}, color={0,0,0}));
+      connect(airSource3.flueGas_outlet, bedCombustion2.flueGas_inlet) annotation (Line(
+          points={{90,-42},{98,-42},{98,-20}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(const.y, airSource3.m_flow) annotation (Line(points={{-41,-74},{-16,-74},{
+              -16,-56},{64,-56},{64,-36},{70,-36}}, color={0,0,127}));
+      connect(gasCombustion.flueGas_inlet_down, bedCombustion.flueGas_outlet) annotation (
+         Line(
+          points={{15,22},{15,11},{14,11},{14,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(bodyRadiation.port_b, gasCombustion.port_a) annotation (Line(points={{-40,
+              48},{-4,48},{-4,14},{10,14},{10,22}}, color={191,0,0}));
+      connect(bodyRadiation1.port_b, gasCombustion1.port_a) annotation (Line(points={{90,
+              68},{94,68},{94,16},{50,16},{50,22}}, color={191,0,0}));
+      connect(gasCombustion1.flueGas_inlet_down, bedCombustion1.flueGas_outlet)
+        annotation (Line(
+          points={{55,22},{55,11},{56,11},{56,0}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(bedCombustion2.flueGas_outlet, gasCombustion2.flueGas_inlet_down)
+        annotation (Line(
+          points={{98,0},{98,2},{115,2},{115,12}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource5.flueGas_outlet, gasCombustion2.flueGas_inlet) annotation (Line(
+          points={{138,-16},{130,-16},{130,22},{120.2,22}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(gasCombustion2.flueGas_outlet, gasCombustion1.flueGas_inlet) annotation (
+          Line(
+          points={{100.2,22},{82,22},{82,32},{60.2,32}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(gasCombustion1.flueGas_outlet, gasCombustion.flueGas_inlet) annotation (
+          Line(
+          points={{40.2,32},{20.2,32}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(gasCombustion.port_a, bodyRadiation3.port_a) annotation (Line(points={{10,
+              22},{10,14},{-4,14},{-4,34},{-26,34},{-26,28}}, color={191,0,0}));
+      connect(bodyRadiation3.port_b, bedCombustion.port_up)
+        annotation (Line(points={{-26,8},{8,8},{8,0}}, color={191,0,0}));
+      connect(gasCombustion1.port_a, bodyRadiation5.port_a) annotation (Line(points={{50,
+              22},{50,16},{64,16},{64,46},{30,46},{30,34},{28,34},{28,20}}, color={191,0,
+              0}));
+      connect(bodyRadiation5.port_b, bedCombustion1.port_up) annotation (Line(points={{28,
+              -3.55271e-15},{28,-24},{64,-24},{64,0},{50,0}}, color={191,0,0}));
+      connect(gasCombustion2.port_a, bodyRadiation4.port_a)
+        annotation (Line(points={{110,12},{154,12}}, color={191,0,0}));
+      connect(bedCombustion2.port_up, bodyRadiation4.port_b) annotation (Line(points={{92,
+              0},{126,0},{126,-10},{154,-10},{154,-8}}, color={191,0,0}));
+      connect(fixedTemperature2.port, bodyRadiation2.port_a)
+        annotation (Line(points={{166,66},{166,46}}, color={191,0,0}));
+      connect(gasCombustion2.port_a, bodyRadiation2.port_b)
+        annotation (Line(points={{110,12},{140,12},{140,26},{166,26}}, color={191,0,0}));
       annotation (
         Icon(coordinateSystem(preserveAspectRatio=false)),
         Diagram(coordinateSystem(preserveAspectRatio=false)),
         experiment(
-          StopTime=100,
+          StopTime=500,
           Interval=0.002,
-          __Dymola_Algorithm="Euler"));
+          __Dymola_Algorithm="Lsodar"));
     end Unnamed3;
 
     model Unnamed4
@@ -1266,7 +1387,7 @@
       parameter SI.Pressure p_ref = 1.0133e5;
       parameter SI.Pressure p = 1.0133e5;
       parameter SI.Temperature T_ref = 1500;
-      parameter SI.Temperature T = 293.15;
+      parameter SI.Temperature T = 993.15;
 
       Real h "对流换热系数";
       Real h1;
@@ -1293,7 +1414,16 @@
       Real Sh;
       Real Dg;
       Real k_d;
+      Real k_r;
+      Real k_c;
       Real k_eff;
+
+      Real k_d1;
+      Real k_c1;
+
+
+      Real x(start=5);
+    //   Real y;
 
       air.BaseProperties medium(
         T(start=293.15, fixed=true),
@@ -1315,15 +1445,22 @@
       pr = air.prandtlNumber(medium.state);
       rho = air.density(medium.state);
       thermalConductivity = air.thermalConductivity(medium.state);
-      Dg=BiomassBoiler.Functions.DiffusionCoef(T,T_ref,p,p_ref,3.13e-4);
+    //   Dg=BiomassBoiler.Functions.DiffusionCoef(T,T_ref,p,p_ref,3.13e-4);
+      Dg=BiomassBoiler.Functions.DiffusionCoef_O2(T);
 
       Re = rho*v*L/mu;
       Ar = 9.8*L^3*rho*(500-rho)/(mu^2);
       Sc = mu/(rho*Dg);
-      Sh = 2 + 1.1*Re^0.6*Sc^0.33;
-      Re1 = Ar*epsilon^4.75/(18+0.61*(Ar*epsilon^4.75)^0.5);
+      Sh = 2*epsilon + 0.69*(Re/epsilon)^0.5*Sc^0.33;
+      Re1 = Ar*epsilon^4.75/(18+0.61*(Ar*epsilon^4.74)^0.5);
       Re2 = rho*v*L/(mu*0.4);
-      k_d = Sh*Dg/L;
+      k_r = BiomassBoiler.Functions.ArrheniusEquation(497, 8540*8.314, T);
+      k_d = Sh*Dg*12/(L*8.314*T);
+      k_c = 8.314*T/(12*(1/k_r + 1/k_d));
+
+      k_d1 = Sh*Dg/L;
+      k_c1 = 1/(1/k_r + 1/k_d1);
+
 
       Nu = (1+1.5*(1-epsilon))*(2+1.1*Re^0.6*pr^(1/3));
       h = Nu*thermalConductivity/L;
@@ -1338,19 +1475,30 @@
       h3 = Nu3*thermalConductivity/L;
 
       k_eff = 1.5*4*Modelica.Constants.sigma*0.02*293.15^3;
+
+      if x > 1e-8 then
+        der(x) = -1;
+      else
+        der(x) = 0;
+      end if;
+
+      annotation (experiment(
+          StopTime=10,
+          Interval=0.002,
+          __Dymola_Algorithm="Euler"));
     end Unnamed4;
 
     model Unnamed6
 
       Components.Sources.AirSource airSource
         annotation (Placement(transformation(extent={{4,-56},{24,-36}})));
-      SubSystem.BedUnits bedUnits
+      SubSystem.BedUnits bedUnits(m_0=5, T=298.15)
         annotation (Placement(transformation(extent={{26,-24},{46,-4}})));
       Components.Sources.FuelSource fuelSource[10](
         variable_m_flow=true,
         variable_T=false,
         variable_components=false,
-        T_const=473.15) annotation (Placement(transformation(origin={-4,-8}, extent={{-10,
+        T_const=673.15) annotation (Placement(transformation(origin={-4,-8}, extent={{-10,
                 -10},{10,10}})));
       Modelica.Blocks.Sources.Constant const[10](k=0.22075)
         annotation (Placement(transformation(origin={-68,6},
@@ -1370,60 +1518,211 @@
           thickness=0.5));
       connect(fixedTemperature.port, bodyRadiation.port_a)
         annotation (Line(points={{-6,40},{-4,40},{-4,42},{16,42}}, color={191,0,0}));
-      connect(bodyRadiation.port_b, bedUnits.port_up) annotation (Line(points={{36,42},{
-              40,42},{40,2},{36,2},{36,-4.2}}, color={191,0,0}));
       annotation (experiment(
-          StopTime=0.5,
+          StopTime=1000,
           Interval=0.005,
-          __Dymola_Algorithm="Cvode"));
+          __Dymola_Algorithm="Euler"));
     end Unnamed6;
 
+    model Unnamed8
+      Real x(start = 10);
+      parameter Real h = 2260;
+      Real h_a;
+      Real Q;
+    //   Real delta_x;
+    //   Real x_prev;
+      Real T(start = 100);
+      Real C = 2260*(x);
+      parameter Real x_in = 1;
+    equation
+      if noEvent(x < Modelica.Constants.eps) then
+        der(x) = x_in;
+      else
+        der(x) = -100000*x + x_in;
+      end if;
+
+    //   der(x) = -10000*x;
+      h_a = -der(x) * h;
+      der(Q) = h_a;
+      der(T)*C = -h_a;
+
+    // algorithm
+    //   // 在每个时间步计算变化量 delta_x
+    //   when sample(0, 1) then
+    //     delta_x := x - pre(x);
+    //     x_prev := x;
+    //   end when;
+
+      annotation (experiment(Interval=1e-06, __Dymola_Algorithm="Dassl"));
+    end Unnamed8;
+
     model Unnamed7
-      import BiomassBoiler.Functions.ArrheniusEquation;
-      Real k_evp;
-      Real R_evp;
-      Real w(start = 1);
-      Real h;
-      parameter Real C = 2300*10;
-      parameter Real h_evp = 2260e3;
-      Real T( start = 493.15);
-    //   Real x(start=0);
-    //   Real nextSampleTime(start=1);
-      Real dw;
-    initial equation
+      import Modelica.Units.SI;
+      parameter Integer m_units = 25;
+      parameter Integer n_units = 5;
+      parameter SI.Length length = 7.5 "炉排总长";
+      parameter SI.Velocity v = 15/3600;
+      parameter Real tau = length/(m_units*v);
+      BiomassBoiler.SubSystem.BedUnits bedUnits[m_units](each v = v, each tau = tau, each n_units = n_units);
+      BiomassBoiler.Components.GasCombustion gasCombustions[m_units](each T(start=298.15), each tau=0.15, each V = length*3.7/m_units);
+      BiomassBoiler.Components.Sources.AirSource airSource[m_units];
+      BiomassBoiler.Components.Sources.AirSource airSource_null(V_flow_const=0);
+      Components.Sources.FuelSource fuelSource[n_units](
+        variable_m_flow=true,
+        variable_T=false,
+        variable_components=false,
+        T_const=308.15)
+        annotation (Placement(transformation(origin={-22,-24}, extent={{-10,-10},{10,10}})));
+      Modelica.Blocks.Sources.Constant const[n_units](k=0.4415)
+        annotation (Placement(transformation(origin={-68,-2},
+        extent={{-10,-10},{10,10}})));
 
     equation
-      k_evp = ArrheniusEquation(5.13 * 10^10, 88000, T);
+      connect(const.y, fuelSource.m_flow)
+        annotation (Line(points={{-57,-2},{-38,-2},{-38,-18},{-32,-18}}, color={0,0,127}));
+      connect(fuelSource.fuel_outlet, bedUnits[1].fuel_inlet);
+      connect(airSource.flueGas_outlet, bedUnits.flueGas_inlet);
+      connect(bedUnits.flueGas_outlet,gasCombustions.flueGas_inlet_down);
+      connect(airSource_null.flueGas_outlet, gasCombustions[m_units].flueGas_inlet);
+      for i in 1:(m_units-1) loop
+        connect(bedUnits[i].fuel_outlet,bedUnits[i+1].fuel_inlet);
+        connect(gasCombustions[i].flueGas_inlet,gasCombustions[i+1].flueGas_outlet);
+      end for;
 
-    //   if k_evp <= 1 then
-    //     R_evp = w*k_evp;
-    //   else
-    //     when time >= nextSampleTime then
-    //       der(x) = 1;
-    //     end when;
-    //   end if;
-    //
-    //   when time >= nextSampleTime then
-    //     der(w) = -R_evp;
-    //   end when;
-    //
-    //   der(nextSampleTime) =  1/k_evp;
-      R_evp = w*k_evp;
-      der(w) = -R_evp;
-    //   w = exp(-k_evp*time);
-    //   when sample(0, 1) then
-    //     dw = w - pre(w);
-    //   end when;
-
-      h = der(w)*h_evp;
-      der(dw) = h;
-      der(T)*C = h;
-    //   dw = w*h_evp;
       annotation (experiment(
-          StopTime=0.5,
-          Interval=0.02,
+          StopTime=100,
+          __Dymola_NumberOfIntervals=1000,
           __Dymola_Algorithm="Euler"));
     end Unnamed7;
+
+    model Unnamed9
+    //   Real ratio;
+    //   parameter Real mf_0[4] = {0.149,0.6797,0.1423,0.029};
+    //   Real mf[4];
+    //   Real m_j[4](start = m*mf_0);
+    //   Real m(fixed=true, start = 100);
+    //   Real eps(start = 0.4);
+    //   Real rho(start = 500);
+    Real x(start = 0.4);
+    Real p(start = 0.1423);
+    equation
+    //   ratio = (1-mf[1]/mf_0[1])*0.03275 + (1 - (if mf[2]/mf_0[2] >= 1 then 1 else mf[2]/mf_0[2]))*0.17247
+    //    + (1 - (if mf[3]/mf_0[3] >= 1 then 1 else mf[3]/mf_0[3]))*0.20449;
+    //   der(m_j[1]) = -0.1*m_j[1];
+    //
+    //   if(abs(der(m_j[1])) < 1e-2) then
+    //     der(m_j[2]) = -0.1*m_j[2];
+    //   else
+    //     der(m_j[2]) = 0;
+    //   end if;
+    //
+    //   if (abs(der(m_j[2])) < 1e-2 and abs(der(m_j[1])) < 1e-2) then
+    //     der(m_j[3]) = -0.1*m_j[3];
+    //   else
+    //     der(m_j[3]) = 0;
+    //   end if;
+    //
+    //
+    //   der(m_j[4]) = 0;
+    //   mf = m_j / sum(m_j);
+    //   m = sum(m_j);
+    //   der(eps) = der(ratio);
+    //   rho = eps*831.2;
+    // der(x) = 1;
+    // der(m) = m_in - m_out;
+    // m_in = if noEvent(time >= 1) then 1 else 0;
+    // m_out = delay(m_in,  0.1);
+    der(x) = -der(p)*1.437;
+    der(p) = -0.001;
+      annotation (experiment(Interval=0.002, __Dymola_Algorithm="Euler"));
+    end Unnamed9;
+
+    model Unnamed11
+      Modelica.Blocks.Sources.Sine sine(
+        amplitude=0.05,
+        f(displayUnit="Hz"),
+        offset=0.108,
+        startTime=1) annotation (Placement(transformation(extent={{-58,20},{-38,40}})));
+      Modelica.Blocks.Sources.Constant const1(k=5)
+        annotation (Placement(transformation(extent={{-54,56},{-34,76}})));
+      Modelica.Blocks.Continuous.FirstOrder firstOrder(T=1)
+        annotation (Placement(transformation(extent={{-10,56},{10,76}})));
+      Modelica.Blocks.Continuous.FirstOrder firstOrder1(T=1)
+        annotation (Placement(transformation(extent={{32,56},{52,76}})));
+      Modelica.Blocks.Continuous.FirstOrder firstOrder3(T=1)
+        annotation (Placement(transformation(extent={{-8,18},{12,38}})));
+    equation
+      connect(firstOrder.y, firstOrder1.u)
+        annotation (Line(points={{11,66},{30,66}}, color={0,0,127}));
+      connect(sine.y, firstOrder.u)
+        annotation (Line(points={{-37,30},{-18,30},{-18,66},{-12,66}}, color={0,0,127}));
+      connect(sine.y, firstOrder3.u)
+        annotation (Line(points={{-37,30},{-34,30},{-34,28},{-10,28}}, color={0,0,127}));
+      annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
+            coordinateSystem(preserveAspectRatio=false)));
+    end Unnamed11;
+
+    model Unnamed2
+      Components.GasCombustion gasCombustion(v=2, L=0.3)
+        annotation (Placement(transformation(extent={{-34,12},{-14,32}})));
+      Components.Sources.AirSource airSource1(V_flow_const=0.324)
+        annotation (Placement(transformation(extent={{-42,44},{-22,64}})));
+      Modelica.Thermal.HeatTransfer.Components.Convection convection annotation (Placement(
+            transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={-38,-20})));
+      Modelica.Thermal.HeatTransfer.Components.HeatCapacitor heatCapacitor(C=11500)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={-20,-68})));
+      Components.Sources.FlueGasSource flueGasSource(V_flow_const=0.25,components_const={0.4283,
+            0,0.0185,0.1537,0.1255,0.143,0.131,0}) annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=180,
+            origin={36,-18})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation(Gr=1) annotation (
+          Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={-82,-24})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1(Gr=0.6)
+        annotation (Placement(transformation(extent={{2,-38},{22,-18}})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T=433.15)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=180,
+            origin={100,-36})));
+    equation
+      connect(airSource1.flueGas_outlet, gasCombustion.flueGas_inlet) annotation (Line(
+          points={{-22,54},{-8,54},{-8,22},{-13.8,22}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(gasCombustion.Gc, convection.Gc)
+        annotation (Line(points={{-30,11.4},{-30,-2},{-28,-2},{-28,-20}}, color={0,0,127}));
+      connect(flueGasSource.flueGas_outlet, gasCombustion.flueGas_inlet_down) annotation (
+          Line(
+          points={{26,-18},{14,-18},{14,8},{-19,8},{-19,12}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(gasCombustion.port_a, bodyRadiation.port_a) annotation (Line(points={{-24,12},{-24,
+              -36},{-56,-36},{-56,-8},{-82,-8},{-82,-14}}, color={191,0,0}));
+      connect(bodyRadiation.port_b, heatCapacitor.port) annotation (Line(points={{-82,-34},{-82,
+              -56},{-34,-56},{-34,-68},{-30,-68}}, color={191,0,0}));
+      connect(bodyRadiation1.port_b, fixedTemperature.port)
+        annotation (Line(points={{22,-28},{30,-28},{30,-36},{90,-36}}, color={191,0,0}));
+      connect(gasCombustion.port_a, bodyRadiation1.port_a) annotation (Line(points={{-24,12},{
+              -24,-18},{-4,-18},{-4,-28},{2,-28}}, color={191,0,0}));
+      connect(convection.fluid, heatCapacitor.port) annotation (Line(points={{-38,-30},{
+              -38,-56},{-34,-56},{-34,-68},{-30,-68}}, color={191,0,0}));
+      connect(convection.solid, gasCombustion.port_a) annotation (Line(points={{-38,-10},
+              {-38,-4},{-56,-4},{-56,-36},{-24,-36},{-24,12}}, color={191,0,0}));
+      annotation (experiment(
+          StopTime=1000,
+          Interval=0.001,
+          __Dymola_Algorithm="Dassl"));
+    end Unnamed2;
   end Test;
 
   package Components
@@ -1502,6 +1801,15 @@
       SI.Length length=tau*v "炉排单元长度";
       SI.Area area = length*width "炉排单元面积";
       parameter SI.Mass m_0 = 10 "初始燃料质量";
+      parameter SI.MassFraction mf_0[n] = {0.149, 0.6797, 0.1423, 0.029} "初始成分质量分数";
+      parameter SI.MassFraction mf_init[n] = {0.149, 0.6797, 0.1423, 0.029} "初始成分质量分数";
+      parameter SI.Diameter dp_0 = 0.02 "初始燃料粒径";
+      parameter SI.Density rho_0 = 831.2 "初始燃料密度";
+      parameter SI.Density bulk_0 = 500 "初始燃料堆积密度";
+      Real bulk;
+      Real epsilon(start = 1 - bulk_0/rho_0) "床层孔隙率";
+    //   parameter Real epsilon = 0.6;
+      SI.Velocity v_gas;
 
 
 
@@ -1514,16 +1822,18 @@
       Basics.Interfaces.FlueGas_inlet flueGas_inlet "流入空气"
         annotation (Placement(transformation(extent={{50,-110},{70,-90}})));
       BiomassBoiler.Components.FlueGasObject flueGasObject;
-    //   Modelica.Media.IdealGases.MixtureGases.CombustionAir combustionAir;
-      //Modelica.Blocks.Interfaces.RealInput v "炉排移动速度";
 
       parameter Integer n = 4 "Number of input、output";
-      SI.Mass m_sj[n](start = {0.149, 0.6797, 0.1423, 0.029} * m_0,min=0) "区域各种组分质量，水分、挥发分、固定碳、灰分";
+      SI.Mass m_sj[n](start = mf_0 * m_0,min=0) "区域各种组分质量，水分、挥发分、固定碳、灰分";
       SI.MassFlowRate m_sj_in[n] "进入各种组分的质量";
       SI.MassFlowRate m_sj_out[n];
       SI.MassFraction mf[n] "体积内质量分数";
       SI.Mass m "体积内物质总质量";
       SI.Height bedHeight "床层高度";
+
+    //   SI.MassFlowRate m_g_in[GasSpecies];
+    //   SI.MassFlowRate m_g_out[GasSpecies];
+    //   SI.Mass m_g[GasSpecies](each start = 1e-5);
 
 
       SI.HeatFlowRate Q_fuel_in "进入燃料热量";
@@ -1531,26 +1841,30 @@
       SI.HeatFlowRate Q_evp "水蒸发吸热";
       SI.HeatFlowRate Q_pyr;
       SI.HeatFlowRate Q_air;
+      SI.HeatFlowRate Q_comb;
     //   SI.MassFlowRate Q_fuel_h;
 
       Real k_evp "燃料水分析出速率常数(s^-1)";
-      SI.MassFlowRate R_evp "燃料水分蒸发速率";
+      SI.MassFlowRate R_evp(start=0) "燃料水分蒸发速率";
       Real k_vol "燃料挥发分析出速率常数(s^-1)";
-      SI.MassFlowRate R_vol "燃料挥发分析出速率";
-      //Real k_cahr "燃料焦炭燃烧速率常数(s^-1)";
-      //Real R_char "燃料焦炭燃烧速率";
-    //   SI.ThermalConductivity k_cond;
-    //   SI.ThermalConductivity k_rad;
-    //   SI.ThermalConductivity k_eff;
+      SI.MassFlowRate R_vol(start=0) "燃料挥发分析出速率";
+
+      Real k_r;
+      Real k_d;
+      Real k_cahr "燃料焦炭燃烧速率常数(s^-1)";
+      SI.MolarFlowRate R_char(start=0) "燃料焦炭燃烧速率";
+      SI.AmountOfSubstance aof_O2;
+      SI.Diameter dp "燃料粒径";
 
 
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a heatPort_left
-        annotation (Placement(transformation(extent={{-112,-70},{-92,-50}})));
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b heatPort_right
-        annotation (Placement(transformation(extent={{92,-72},{112,-50}})));
+    //   Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a heatPort_left
+    //     annotation (Placement(transformation(extent={{-112,-70},{-92,-50}})));
+    //   Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b heatPort_right
+    //     annotation (Placement(transformation(extent={{92,-72},{112,-50}})));
     protected
-      constant SI.HeatCapacity h_evp = 2260e3 "水的汽化潜热";
-      constant Real h_pyr = 300e3 "生物质热解焓变";
+      constant Real h_evp = 2260e3 "水的汽化潜热";
+      constant Real h_pyr = 150e3 "生物质热解焓变";
+      constant Real h_comb = 393.5e3;
       constant Real eps = 1e-6;
       SI.MassFraction X[GasSpecies] "挥发分质量分数";
       BiomassBoiler.Basics.FixedParams fixedParams;
@@ -1558,12 +1872,21 @@
       SI.SpecificHeatCapacity cp_in "进口燃料比热容";
       SI.SpecificHeatCapacity cp_out "出口燃料比热容";
 
+      SI.MassFlowRate gas_out_total;
+      SI.MassFraction X_O2[GasSpecies] = {0,1,0,0,0,0,0,0};
+      SI.MassFraction X_CO2[GasSpecies] = {0,0,0,0,0,1,0,0};
+      SI.MassFraction X_H2O[GasSpecies] = {0,0,0,0,0,0,1,0};
+      Real Sc;
+      Real Re;
+      Real Sh;
+      Real D;
+
     initial equation
 
     equation
 
-      heatPort_left.T = T;
-      heatPort_right.T = T;
+    //   heatPort_left.T = T;
+    //   heatPort_right.T = T;
 
       /* Fuel inlet */
       m_sj_in = fuel_in.m_flow * fuel_in.components;
@@ -1572,34 +1895,50 @@
       fuel_out.m_flow = sum(m_sj_out);
       fuel_out.components = m_sj_out / sum(m_sj_out);
       fuel_out.T = T;
-    //   if m <= 0 then
-    //     fuel_out.components = zeros(4);
-    //   else
-    //     fuel_out.components = m_sj / m;
-    //   end if;
 
-      // 蒸发速率、挥发分析出速率、焦炭燃烧速率
+      // 蒸发速率
       k_evp = ArrheniusEquation(5.13 * 10^10, 88000, T);
     //   k_evp = ArrheniusEquation(5.6 * 10^8, 88000, T);
       //k_evp = ArrheniusEquation(4.5 * 10^3, 45000, T);
+      if noEvent(m_sj[1] <= eps) then
+        R_evp = 0;
+      else
+        R_evp = k_evp * m_sj[1];
+      end if;
 
-      R_evp = k_evp * m_sj[1];
-    //   R_evp = k_evp * (if noEvent(m_sj[1] > eps) then m_sj[1] else 0);
-    //   if noEvent(m_sj[1] <= eps) then
-    //     R_evp = 0;
-    //   else
-    //     R_evp = k_evp * m_sj[1];
-    //   end if;
+      //挥发分析出速率
     //   k_vol = ArrheniusEquation(7 * 10^7, 126697, T);
       k_vol = ArrheniusEquation(1.4e10, 150000, T);
     //   k_vol = ArrheniusEquation(1.5, 20500, T);
       R_vol = k_vol * m_sj[2];
 
+      // 焦炭燃烧速率
+      D = BiomassBoiler.Functions.DiffusionCoef_O2(T);
+      v_gas = flueGas_inlet.m_flow / (flueGas_inlet.rho*area*epsilon);
+      Sc = flueGasObject.mu/(flueGasObject.rho*D);
+      Re = flueGasObject.rho*v_gas*dp/flueGasObject.mu;
+      Sh = 2 + 0.69*Re^0.5*Sc^0.33;
+      k_d = Sh*D/dp;
+      k_r = ArrheniusEquation(497, 8540*8.314, T);
+      k_cahr = 1/(1/k_d + 1/k_r);
+      //   R_char = aof_O2*k_cahr*6*epsilon/dp;
+    //   if noEvent(aof_O2 <= eps or m_sj[3] <= eps) then
+    //     R_char = 0;
+    //   else
+      R_char = aof_O2*k_cahr;
+    //   end if;
+
+      // 颗粒收缩
+      der(epsilon) = (if noEvent(mf[1]/mf_init[1] >= 1) then 0 else -der(mf[1])*0.2198) + (if noEvent(mf[2]/mf_init[2] >= 1) then 0 else -der(mf[2])*0.2537)
+      + (if noEvent(mf[3]/mf_init[3] >= 1) then 0 else -der(mf[3])*1.437);
+      bulk = (1-epsilon)*rho_0;
+      dp = dp_0*(mf_init[4]/mf[4])^(1/3);
+
       // 组分平衡
       m_sj_out = m_sj / tau;
       der(m_sj[1]) = m_sj_in[1] - m_sj_out[1] - R_evp;
       der(m_sj[2]) = m_sj_in[2] - m_sj_out[2] - R_vol;
-      der(m_sj[3]) = m_sj_in[3] - m_sj_out[3];
+      der(m_sj[3]) = m_sj_in[3] - m_sj_out[3] - R_char*0.012;
       der(m_sj[4]) = m_sj_in[4] - m_sj_out[4];
       mf = m_sj / sum(m_sj);
 
@@ -1619,19 +1958,45 @@
       Q_evp = R_evp * h_evp;
       // 热解吸热
       Q_pyr = R_vol * h_pyr;
+      // 焦炭燃烧放热
+      Q_comb = R_char * h_comb;
       // 进入空气吸热
       Q_air = flueGas_inlet.cp*flueGas_inlet.m_flow*(flueGas_inlet.T - T);
 
-      C * der(T) = Q_fuel_in + Q_air + port_up.Q_flow + port_down.Q_flow
-      + heatPort_left.Q_flow + heatPort_right.Q_flow - Q_evp - Q_pyr;
+      C * der(T) = Q_fuel_in + Q_air + port_up.Q_flow + port_down.Q_flow - Q_evp - Q_pyr + Q_comb;
 
       // 总质量、床层高度、单元长度、燃料体积
       m = sum(m_sj);
-      bedHeight = m / (width * length) / 500;
+      bedHeight = m / (width * length) / bulk;
       //V_fuel = length * bedHeight * width;
 
+      // 体积内气体平衡
+    //   m_g_in = flueGas_inlet.m_flow.*flueGas_inlet.composition;
+    //   m_g_out = m_g /(bedHeight/v_gas);
+    //   for i in GasSpecies loop
+    //     if i == GasSpecies.O2 then
+    //       der(m_g[i]) =  m_g_in[i] - m_g_out[i] - R_char*0.032;
+    //     elseif i == GasSpecies.CO2 then
+    //       //       der(m_g[i]) =  m_g_in[i] - m_g_out[i] + R_char*0.04401;\
+    //       m_g_out[i] = m_g_in[i] + R_char*0.04401;
+    //     elseif i == GasSpecies.H2O then
+    //       der(m_g[i]) =  m_g_in[i] - m_g_out[i] + R_evp;
+    //     else
+    //       der(m_g[i]) = m_g_in[i] - m_g_out[i];
+    //     end if;
+    //   end for;
+
+    //   aof_O2 = m_g[GasSpecies.O2]/0.032;
+
+      aof_O2 = flueGas_inlet.m_flow*flueGas_inlet.composition[GasSpecies.O2]/0.032;
+
       // 挥发分与空气混合质量分数
-      X = (R_vol*fixedParams.X + flueGas_inlet.m_flow*flueGas_inlet.composition)/(R_vol + flueGas_inlet.m_flow);
+      //   X = (R_vol*fixedParams.X + flueGas_inlet.m_flow*flueGas_inlet.composition)/(R_vol + flueGas_inlet.m_flow);
+      gas_out_total = R_vol + flueGas_inlet.m_flow + R_evp + R_char*0.04401;
+      X = (R_vol*fixedParams.X + flueGas_inlet.m_flow*flueGas_inlet.composition
+      + R_evp*X_H2O + R_char*X_CO2*0.04401 - R_char*X_O2*0.032) / gas_out_total;
+
+    //   X = (R_vol*fixedParams.X + m_g_out)/(R_vol + sum(m_g_out));
 
       // 计算挥发分属性
       flueGasObject.T = T;
@@ -1639,10 +2004,13 @@
       flueGasObject.X = X;
 
       // 挥发分出口
-      flueGas_outlet.m_flow = R_vol + flueGas_inlet.m_flow;
+      flueGas_outlet.m_flow = gas_out_total;
+    //   flueGas_outlet.m_flow = R_vol + sum(m_g_out);
       flueGas_outlet.composition = X;
       flueGas_outlet.T = T;
       flueGas_outlet.cp = flueGasObject.cp;
+      flueGas_outlet.rho = flueGasObject.rho;
+
 
 
       annotation (Diagram(graphics), Icon(graphics={Bitmap(
@@ -1653,7 +2021,11 @@
                    + "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"
                    + "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"
                    + "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",
-              fileName="modelica://ClaRaPlus/Resources/Images/Components/CombustionChamberIcon.png")}));
+              fileName="modelica://ClaRaPlus/Resources/Images/Components/CombustionChamberIcon.png")}),
+        experiment(
+          StopTime=1000,
+          Interval=0.0005,
+          __Dymola_Algorithm="Dassl"));
     end BedCombustion;
 
     model GasCombustion
@@ -1662,11 +2034,13 @@
       import BiomassBoiler.Basics.GasSpecies;
       import BiomassBoiler.Functions.massToMoleFractions;
       import BiomassBoiler.Units.Rate;
+      import BiomassBoiler.Units.MolarReactionRate;
+
+      import BiomassBoiler.Functions.DiffusionCoef_FlueGas;
+      import BiomassBoiler.Functions.R_mix_cal;
 
     protected
-      parameter SI.Volume V = 0.81 "控制体体积";
-      parameter Real tao = 0.05;
-      constant Real eps = 1e-6;
+      constant Real eps = Modelica.Constants.small;
       constant GasSpecies CO=GasSpecies.CO;
       constant GasSpecies O2=GasSpecies.O2;
       constant GasSpecies H2=GasSpecies.H2;
@@ -1687,10 +2061,14 @@
           3.25*10^7,
           15098*8.314,
           T);
+    //   Rate k_H2=ArrheniusEquation(
+    //       51.8,
+    //       3420*8.314,
+    //       T)*T^1.5;
       Rate k_H2=ArrheniusEquation(
-          51.8,
-          3420*8.314,
-          T)*T^1.5;
+          3.123e16,
+          21000*8.314,
+          T);
       Rate k_CH4=ArrheniusEquation(
           1.585*10^10,
           24157*8.314,
@@ -1703,14 +2081,25 @@
 
     public
       SI.Temperature T(start=693.15);
+      parameter SI.Velocity v "风速";
+      parameter SI.Length L;
+      parameter SI.Length W = 3.7;
+      parameter SI.Height H = 2.2;
+      parameter SI.Volume V=L*W*H "控制体体积";
+      parameter Real tau=L/v;
       parameter Real p = 1.0133e5;
-      SI.MassFraction massFractions[GasSpecies] "气体的质量分数";
-      SI.MoleFraction moleFractions[GasSpecies];
-      Real R_CO;
-      Real R_H2;
-      Real R_CH4;
-      Real R_C2H6;
-      SI.AmountOfSubstance aos[GasSpecies](fixed=true,start={0,9.366,0,0,0,0,0,35.234}*V,min=0) "体积内物质的量";
+      SI.MassFraction massFractions[GasSpecies](each start=0) "气体的质量分数";
+      SI.MoleFraction moleFractions[GasSpecies](each start=0);
+      MolarReactionRate R_CO(start=0);
+      MolarReactionRate R_H2(start=0);
+      MolarReactionRate R_CH4(start=0);
+      MolarReactionRate R_C2H6(start=0);
+    //   SI.DiffusionCoefficient D_mix;
+    //   MolarReactionRate R_mix_CO;
+    //   MolarReactionRate R_mix_H2;
+    //   MolarReactionRate R_mix_CH4;
+    //   MolarReactionRate R_mix_C2H6;
+      SI.AmountOfSubstance aos[GasSpecies](fixed=true,start={0,9,0,0,0,0,0,35}*V,min=0) "体积内物质的量";
       SI.Concentration concen[GasSpecies] "气体浓度mol/m3";
       SI.MolarFlowRate molar_g_in[GasSpecies](min=0);
       SI.MolarFlowRate molar_g_out[GasSpecies];
@@ -1726,6 +2115,16 @@
       Basics.Interfaces.FlueGas_inlet flueGas_inlet
         annotation (Placement(transformation(extent={{92,-10},{112,10}})));
       BiomassBoiler.Components.FlueGasObject flueGasObject;
+      Real gas_in[GasSpecies];
+      Real gas_out[GasSpecies];
+      Real Nu;
+      Real Re;
+      Real h_conv;
+      Modelica.Blocks.Interfaces.RealOutput Gc annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={-60,-106})));
+      Real Q;
     initial equation
 
     equation
@@ -1739,50 +2138,116 @@
       flueGas_outlet.composition = massFractions;
       flueGas_outlet.m_flow = molar_g_out * molarMass;
       flueGas_outlet.cp = flueGasObject.cp;
+      flueGas_outlet.rho = flueGasObject.rho;
 
       // 反应速率计算
-      if noEvent(aos[CO] <= eps or aos[O2] <= eps) then
+    //   D_mix = DiffusionCoef_FlueGas(T, p, moleFractions);
+    //   R_mix_CO = R_mix_cal(D_mix, 0.02, concen[CO], concen[O2], 0.3, 0.6, 1, 0.5);
+    //   R_mix_H2 = R_mix_cal(D_mix, 0.02, concen[H2], concen[O2], 0.3, 0.6, 1, 0.5);
+    //   R_mix_CH4 = R_mix_cal(D_mix, 0.02, concen[CH4], concen[O2], 0.3, 0.6, 1, 1.5);
+    //   R_mix_C2H6 = R_mix_cal(D_mix, 0.02, concen[C2H6], concen[O2], 0.3, 0.6, 1, 2.5);
+
+
+    //   R_CO = min(k_CO*concen[CO]*concen[O2]^0.5*concen[H2O]^0.5, R_mix_CO);
+    //   R_H2 = min(k_H2*concen[H2]^0.5*concen[O2]^1.4, R_mix_H2);
+    //   R_CH4 = min(k_CH4*concen[CH4]^0.7*concen[O2]^0.8, R_mix_CH4);
+    //   R_C2H6 = min(k_C2H6*concen[C2H6]*concen[O2], R_mix_C2H6);
+
+    //   R_CO = min(k_CO*concen[CO]*concen[O2]^0.5*concen[H2O]^0.5,gas_in[CO]);
+    //   R_H2 = min(k_H2*concen[H2]^0.5*concen[O2]^1.4, gas_in[H2]);
+    //   R_CH4 = min(k_CH4*concen[CH4]^0.7*concen[O2]^0.8, gas_in[CH4]);
+    //   R_C2H6 = min(k_C2H6*concen[C2H6]*concen[O2], gas_in[C2H6]);
+
+    //   R_CO = k_CO*concen[CO]*concen[O2]^0.5*concen[H2O]^0.5;
+    //   R_H2 = min(k_H2*concen[H2]^0.5*concen[O2]^1.4, gas_in[H2]);
+    //   R_CH4 = k_CH4*concen[CH4]^0.7*concen[O2]^0.8;
+    //   R_C2H6 = k_C2H6*concen[C2H6]*concen[O2];
+
+      if noEvent(concen[CO] <= eps or concen[O2] <= eps) then
         R_CO = 0;
       else
-        R_CO = k_CO*aos[CO]*aos[O2]^0.5*aos[H2O]^0.5;
+    //     R_CO = k_CO*concen[CO]*concen[O2]^0.5*concen[H2O]^0.5;
+        R_CO = min(k_CO*concen[CO]*concen[O2]^0.5*concen[H2O]^0.5,gas_in[CO]);
       end if;
 
-      if noEvent(aos[H2] <= eps or aos[O2] <= eps) then
+      if noEvent(concen[H2] <= eps or concen[O2] <= eps) then
         R_H2 = 0;
       else
-        R_H2 = min(k_H2*aos[H2]^1.5*aos[O2], 1279);
+        R_H2 = min(k_H2*concen[H2]^0.5*concen[O2]^1.4, gas_in[H2]);
       end if;
 
-      if noEvent(aos[CH4] <= eps or aos[O2] <= eps) then
+      if noEvent(concen[CH4] <= eps or concen[O2] <= eps) then
         R_CH4 = 0;
       else
-        R_CH4 = k_CH4*aos[CH4]^0.7*aos[O2]^0.8;
+        R_CH4 = min(k_CH4*concen[CH4]^0.7*concen[O2]^0.8, gas_in[CH4]);
+    //     R_CH4 = k_CH4*concen[CH4]^0.7*concen[O2]^0.8;
       end if;
 
-      if noEvent(aos[C2H6] <= eps or aos[O2] <= eps) then
+      if noEvent(concen[C2H6] <= eps or concen[O2] <= eps) then
         R_C2H6 = 0;
       else
-        R_C2H6 = min(k_C2H6*aos[C2H6]*aos[O2], 1279);
+        R_C2H6 = min(k_C2H6*concen[C2H6]*concen[O2], gas_in[C2H6]);
+    //     R_C2H6 = k_C2H6*concen[C2H6]*concen[O2];
       end if;
+
+
+    //   if noEvent(concen[CO] <= eps or concen[O2] <= eps) then
+    //     R_CO = 0;
+    //   else
+    //     R_CO = k_CO*concen[CO]*concen[O2]^0.5*concen[H2O]^0.5;
+    //   end if;
+    //
+    //   if noEvent(concen[H2] <= eps or concen[O2] <= eps) then
+    //     R_H2 = 0;
+    //   else
+    //     R_H2 = min(k_H2*concen[H2]^1.5*concen[O2], 1279);
+    //     R_H2 = k_H2*concen[H2]^0.5*concen[O2]^1.4;
+    //   end if;
+    //
+    //   if noEvent(concen[CH4] <= eps or concen[O2] <= eps) then
+    //     R_CH4 = 0;
+    //   else
+    //     R_CH4 = k_CH4*concen[CH4]^0.7*concen[O2]^0.8;
+    //   end if;
+    //
+    //   if noEvent(concen[C2H6] <= eps or concen[O2] <= eps) then
+    //     R_C2H6 = 0;
+    //   else
+    //     R_C2H6 = min(k_C2H6*concen[C2H6]*concen[O2], 1279);
+    //     R_C2H6 = k_C2H6*concen[C2H6]*concen[O2];
+    //   end if;
+
 
       // 气体浓度
       concen = aos/V;
 
       // 体积内气体物质量变化
-      molar_g_out = aos / tao;
-      der(aos[CO]) = -R_CO + R_CH4 + 2*R_C2H6 + molar_g_in[CO] - molar_g_out[CO];
-      der(aos[O2]) = -R_CO/2 - R_H2/2 - R_CH4*1.5 - R_C2H6*2.5 + molar_g_in[O2] - molar_g_out[O2];
-      der(aos[H2]) = -R_H2 + molar_g_in[H2] - molar_g_out[H2];
-      der(aos[CH4]) = -R_CH4 + molar_g_in[CH4] - molar_g_out[CH4];
-      der(aos[C2H6]) = -R_C2H6 + molar_g_in[C2H6] - molar_g_out[C2H6];
-      der(aos[CO2]) = R_CO + molar_g_in[CO2] - molar_g_out[CO2];
-      der(aos[H2O]) = R_H2 + R_CH4*2 + R_C2H6*3 + molar_g_in[H2O] - molar_g_out[H2O];
-      der(aos[N2]) = molar_g_in[N2] - molar_g_out[N2];
+    //   molar_g_out = aos / tau;
+    //   der(aos[CO]) = -R_CO + R_CH4 + 2*R_C2H6 + molar_g_in[CO] - molar_g_out[CO];
+    //   der(aos[O2]) = -R_CO/2 - R_H2/2 - R_CH4*1.5 - R_C2H6*2.5 + molar_g_in[O2] - molar_g_out[O2];
+    //   der(aos[H2]) = -R_H2 + molar_g_in[H2] - molar_g_out[H2];
+    //   der(aos[CH4]) = -R_CH4 + molar_g_in[CH4] - molar_g_out[CH4];
+    //   der(aos[C2H6]) = -R_C2H6 + molar_g_in[C2H6] - molar_g_out[C2H6];
+    //   der(aos[CO2]) = R_CO + molar_g_in[CO2] - molar_g_out[CO2];
+    //   der(aos[H2O]) = R_H2 + R_CH4*2 + R_C2H6*3 + molar_g_in[H2O] - molar_g_out[H2O];
+    //   der(aos[N2]) = molar_g_in[N2] - molar_g_out[N2];
+
+      molar_g_out = aos / tau;
+      gas_in = molar_g_in / V;
+      gas_out = concen / tau;
+      der(concen[CO]) = -R_CO + R_CH4 + 2*R_C2H6 + gas_in[CO] - gas_out[CO];
+      der(concen[O2]) = -R_CO/2 - R_H2/2 - R_CH4*1.5 - R_C2H6*2.5 + gas_in[O2] - gas_out[O2];
+      der(concen[H2]) = -R_H2 + gas_in[H2] - gas_out[H2];
+      der(concen[CH4]) = -R_CH4 + gas_in[CH4] - gas_out[CH4];
+      der(concen[C2H6]) = -R_C2H6 + gas_in[C2H6] - gas_out[C2H6];
+      der(concen[CO2]) = R_CO + gas_in[CO2] - gas_out[CO2];
+      der(concen[H2O]) = R_H2 + R_CH4*2 + R_C2H6*3 + gas_in[H2O] - gas_out[H2O];
+      der(concen[N2]) = gas_in[N2] - gas_out[N2];
 
       // 控制体内的一些属性
       m = aos*molarMass;
-      massFractions = aos.*molarMass/m;
-      moleFractions = aos/sum(aos);
+      massFractions*m = aos.*molarMass;
+      moleFractions*sum(aos) = aos;
       flueGasObject.T = T;
       flueGasObject.p = p;
       flueGasObject.X = massFractions;
@@ -1791,14 +2256,25 @@
       port_a.T = T;
 
       // 气体燃烧放热
-      Q_combustion = R_CO*h_CO + R_H2*h_H2 + R_CH4*h_CH4 + R_C2H6*h_C2H6;
+      Q_combustion = (R_CO*h_CO + R_H2*h_H2 + R_CH4*h_CH4 + R_C2H6*h_C2H6)*V;
       // 进入气体热
       Q_flueGas_in = flueGas_inlet_down.cp*flueGas_inlet_down.m_flow*(flueGas_inlet_down.T -
         T) + flueGas_inlet.cp*flueGas_inlet.m_flow*(flueGas_inlet.T - T);
 
       // 能量平衡
-      der(T)*flueGasObject.cp*m = Q_flueGas_in + Q_combustion + port_a.Q_flow;
+      Q = Q_flueGas_in + Q_combustion + port_a.Q_flow;
+      der(T)*flueGasObject.cp*m = Q;
 
+      // 常数计算
+      Re = flueGasObject.rho*v*L/flueGasObject.mu;
+      Nu = 2+1.1*Re^0.6*flueGasObject.pr^(1/3);
+      h_conv = Nu*flueGasObject.thermalConductivity/L;
+      Gc = h_conv*W*L;
+
+      annotation (experiment(
+          StopTime=1000,
+          Interval=0.001,
+          __Dymola_Algorithm="Dassl"));
     end GasCombustion;
 
     model FlueGasCompositionCal
@@ -1809,7 +2285,9 @@
           CH4,
           C2H6,
           CO2,
-          H2O) "烟气成分";
+          H2O,
+          NH3,
+          H2S) "烟气成分";
     protected
       constant Real MW_C = 12.01;    // 碳的摩尔质量, kg/kmol
       constant Real MW_H = 1.008;    // 氢的摩尔质量, kg/kmol
@@ -1821,6 +2299,8 @@
       constant Real MW_CH4 = 16.042; // CH4的摩尔质量, kg/kmol
       constant Real MW_C2H6 = 30.068; // C2H6的摩尔质量, kg/kmol
       constant Real MW_H2O = 18.016; // H2O的摩尔质量, kg/kmol
+    //   constant Real MW_NH3 = 18.016;
+    //   constant Real H2S = 18.016;
       constant Real MW_N2 = 28.01; // H2O的摩尔质量, kg/kmol
 
       constant GasSpecies CO=GasSpecies.CO;
@@ -1830,6 +2310,8 @@
       constant GasSpecies C2H6=GasSpecies.C2H6;
       constant GasSpecies CO2=GasSpecies.CO2;
       constant GasSpecies H2O=GasSpecies.H2O;
+      constant GasSpecies NH3=GasSpecies.NH3;
+      constant GasSpecies H2S=GasSpecies.H2S;
     //   constant GasSpecies N2=GasSpecies.N2;
     public
       Modelica.Units.SI.MassFraction y[GasSpecies](min=0);
@@ -1848,6 +2330,8 @@
          y[CH4]*MW_H*4/MW_CH4 + y[H2O]*MW_H*2/MW_H2O + y[H2]*MW_H*2/MW_H2 =  0.097;
       //   y[N2] = 0;
       y[C2H6] = 0;
+     // y[NH3] =
+      //y[H2S] =
     end FlueGasCompositionCal;
 
     package HeatCapacities
@@ -2190,7 +2674,7 @@
 
         parameter MassFlowRate m_flow_const = 2.2075 "Constant mass flow rate" annotation (Dialog(group="Constant Boundaries", enable=not variable_m_flow));
         parameter Temperature T_const = 293.15 "Constant specific temperature of source" annotation (Dialog(group="Constant Boundaries", enable=not variable_T));
-        parameter MassFraction components_const[4] = {0, 0.6797, 0.1423, 0.029} "Constant composition" annotation (Dialog(group="Constant Boundaries", enable=not variable_xi));
+        parameter MassFraction components_const[4] = {0.149, 0.6797, 0.1423, 0.029} "Constant composition" annotation (Dialog(group="Constant Boundaries", enable=not variable_xi));
 
       protected
         MassFlowRate m_flow_in;
@@ -2268,8 +2752,9 @@
           annotation (Dialog(group="Constant Boundaries", enable=not variable_T));
         parameter MassFraction components_const[2]={0.232,0.768} "Constant composition O2,N2"
           annotation (Dialog(group="Constant Boundaries", enable=not variable_xi));
-        parameter Modelica.Units.SI.Density rho=101325*0.02897/(8.314*T_const)
-          annotation (Dialog(group="Constant Boundaries"));
+      //   parameter Modelica.Units.SI.Density rho=101325*0.02897/(8.314*T_const)
+      //     annotation (Dialog(group="Constant Boundaries"));
+        Modelica.Units.SI.Density rho;
 
       protected
         MassFlowRate m_flow_in;
@@ -2310,11 +2795,13 @@
         flueGas_outlet.T = T_in;
         flueGas_outlet.m_flow = m_flow_in;
         flueGas_outlet.cp = flueGasObject.cp;
+        flueGas_outlet.rho = rho;
+        rho = flueGasObject.rho;
       //   size(GasSpecies,1)
-        for i in 1:8 loop
-          if i == 2 then
+        for i in GasSpecies loop
+          if i == GasSpecies.O2 then
             flueGas_outlet.composition[i] =  components_in[1];
-          elseif i == 8 then
+          elseif i == GasSpecies.N2 then
              flueGas_outlet.composition[i] =  components_in[2];
           else
             flueGas_outlet.composition[i] = 0;
@@ -2328,6 +2815,84 @@
                 imageSource="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",
                 fileName="modelica://ClaRaPlus/Resources/Images/Components/Source.png")}));
       end AirSource;
+
+      model FlueGasSource
+        import Modelica.Units.SI.MassFlowRate;
+        import Modelica.Units.SI.Temperature;
+        import BiomassBoiler.Units.MassFraction;
+        import BiomassBoiler.Basics.Interfaces.*;
+        import BiomassBoiler.Basics.GasSpecies;
+
+        parameter Boolean variable_m_flow=false "True, if mass flow defined by variable input"
+          annotation (Dialog(group="Define Variable Boundaries"));
+        parameter Boolean variable_T=false "True, if temperature defined by variable input"
+          annotation (Dialog(group="Define Variable Boundaries"));
+        parameter Boolean variable_components=false
+          "True, if composition defined by variable input"
+          annotation (Dialog(group="Define Variable Boundaries"));
+
+        parameter Modelica.Units.SI.VolumeFlowRate V_flow_const=0.108
+          "Constant volume flow rate"
+          annotation (Dialog(group="Constant Boundaries", enable=not variable_m_flow));
+        parameter Temperature T_const=293.15 "Constant specific temperature of source"
+          annotation (Dialog(group="Constant Boundaries", enable=not variable_T));
+        parameter MassFraction components_const[GasSpecies] "Constant composition"
+          annotation (Dialog(group="Constant Boundaries", enable=not variable_xi));
+      //   parameter Modelica.Units.SI.Density rho=101325*0.02897/(8.314*T_const)
+      //     annotation (Dialog(group="Constant Boundaries"));
+        Modelica.Units.SI.Density rho;
+
+      protected
+        MassFlowRate m_flow_in;
+        Temperature T_in;
+        MassFraction components_in[GasSpecies];
+        BiomassBoiler.Components.FlueGasObject flueGasObject;
+
+      public
+        FlueGas_outlet flueGas_outlet
+          annotation (Placement(transformation(extent={{90,-10},{110,10}})));
+
+        Modelica.Blocks.Interfaces.RealInput m_flow=m_flow_in if (variable_m_flow)
+          "Variable mass flow rate"
+          annotation (Placement(transformation(extent={{-120,40},{-80,80}})));
+        Modelica.Blocks.Interfaces.RealInput T=T_in if (variable_T)
+          "Variable specific temperature"
+          annotation (Placement(transformation(extent={{-120,-20},{-80,20}})));
+        Modelica.Blocks.Interfaces.RealInput components[GasSpecies]=components_in
+          if (variable_components) "Variable components"
+          annotation (Placement(transformation(extent={{-120,-80},{-80,-40}})));
+
+      equation
+
+        if (not variable_m_flow) then
+          m_flow_in = V_flow_const*rho;
+        end if;
+        if (not variable_T) then
+          T_in = T_const;
+        end if;
+        if (not variable_components) then
+          components_in = components_const;
+        end if;
+
+        flueGasObject.T = T_in;
+        flueGasObject.p = 101325;
+        flueGasObject.X = flueGas_outlet.composition;
+
+        flueGas_outlet.T = T_in;
+        flueGas_outlet.m_flow = m_flow_in;
+        flueGas_outlet.cp = flueGasObject.cp;
+        flueGas_outlet.rho = rho;
+        flueGas_outlet.composition = components_in;
+        rho = flueGasObject.rho;
+
+
+          annotation (Dialog(group="Constant Boundaries"),
+                    Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,100}}),
+              graphics={Bitmap(
+                extent={{-100,-100},{100,100}},
+                imageSource="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",
+                fileName="modelica://ClaRaPlus/Resources/Images/Components/Source.png")}));
+      end FlueGasSource;
     end Sources;
   end Components;
 
@@ -2407,10 +2972,13 @@
     model BedUnits
       import Modelica.Units.SI;
 
-      parameter Integer m_units = 30;
       parameter Integer n_units = 10;
+      parameter Real tau = 24;
+      parameter SI.Velocity v = 15/3600 "炉排速度";
+      parameter SI.Mass m_0 = 5 "体积内初始质量";
       parameter SI.Pressure p = 101325 "气压";
-      parameter SI.Temperature T = 293.15 "初始温度";
+      parameter SI.Temperature T = 298.15 "初始温度";
+
       SI.Height bedHeight;
       //parameter Length l;
       //parameter Length w;
@@ -2422,7 +2990,7 @@
         annotation (Placement(transformation(extent={{-10,-110},{10,-90}})));
       Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_up
         annotation (Placement(transformation(extent={{-10,88},{10,108}})));
-      Components.BedCombustion bedCombustion[n_units](each T(start=T))
+      Components.BedCombustion bedCombustion[n_units](each T(start=T),each m_0 = m_0, each v = v,each tau = tau)
         annotation (Placement(transformation(extent={{-10,20},{10,40}})));
       BiomassBoiler.Components.ThermalConductor thermalConductor[n_units-1]
         annotation (Placement(transformation(
@@ -2440,12 +3008,12 @@
       Basics.Interfaces.Fuel_outlet fuel_outlet[n_units] "流出燃料"
         annotation (Placement(transformation(extent={{90,18},{110,38}})));
 
-      parameter Real epsilon = 0.6 "孔隙率";
+      parameter Real epsilon = 0.4 "孔隙率";
       parameter SI.Diameter dp = 0.02 "燃料粒径";
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_left[n_units]
-        annotation (Placement(transformation(extent={{-112,-30},{-92,-10}})));
-      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_right[n_units]
-        annotation (Placement(transformation(extent={{92,-30},{112,-10}})));
+    //   Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_left[n_units]
+    //     annotation (Placement(transformation(extent={{-112,-30},{-92,-10}})));
+    //   Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_right[n_units]
+    //     annotation (Placement(transformation(extent={{92,-30},{112,-10}})));
     protected
       SI.ThermalConductivity k_cond[n_units-1];
       SI.ThermalConductivity k_rad[n_units-1];
@@ -2457,8 +3025,8 @@
       connect(bedCombustion[n_units].port_down, port_down);
       connect(bedCombustion[1].flueGas_outlet,flueGas_outlet);
       connect(bedCombustion[n_units].flueGas_inlet,flueGas_inlet);
-      connect(bedCombustion.heatPort_left,port_left);
-      connect(bedCombustion.heatPort_right,port_right);
+    //   connect(bedCombustion.heatPort_left,port_left);
+    //   connect(bedCombustion.heatPort_right,port_right);
       for i in 1:n_units-1 loop
         // 热导
         connect(bedCombustion[i].port_down, thermalConductor[i].port_a);
