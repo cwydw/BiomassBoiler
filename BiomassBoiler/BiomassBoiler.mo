@@ -2609,8 +2609,8 @@
     end Unnamed15;
 
     model Unnamed16
-      parameter Integer n = 10;
-      parameter Integer n_units = 4;
+      parameter Integer n = 25;
+      parameter Integer n_units = 1;
       parameter Integer m = 4;
       parameter Real a[n] = linspace(265,100,n);
       parameter Real b[m] = ones(m) * 413.15;
@@ -2625,21 +2625,21 @@
       Components.GasCombustion1 gasCombustion[n](
         T(start=298.15),
         v=2,
-        L=0.75,
+        L=0.3,
         H=1.9)
         annotation (Placement(transformation(extent={{-14,20},{6,40}})));
       Components.CombineHeatTransfer combineHeatTransfer[n](each Gr=0.79, each Gr_n=0.672)
         annotation (Placement(transformation(extent={{-40,-26},{-20,-6}})));
       SubSystem.BedUnits bedUnits[n](
         n_units=n_units,
-        L=0.75,
+        L=0.3,
         v=15/3600,
         m_0=a,
         T=323.15)
         annotation (Placement(transformation(extent={{-14,-66},{6,-46}})));
       Components.Sources.AirSource airSource[n](
         variable_v_flow=false,
-        V_flow_const=0.74,
+        V_flow_const=0.864,
         T_const=293.15)
         annotation (Placement(transformation(extent={{-36,-100},{-16,-80}})));
       Components.Sources.FuelSource fuelSource(
@@ -2656,7 +2656,7 @@
             origin={16,-16})));
       Components.Sources.AirSource gas_airSource(V_flow_const=0)
         annotation (Placement(transformation(extent={{76,20},{56,40}})));
-      Modelica.Blocks.Sources.Constant const(k=0.552)
+      Modelica.Blocks.Sources.Constant const(k=2.2075)
         annotation (Placement(transformation(extent={{-156,-26},{-136,-6}})));
       Modelica.Thermal.HeatTransfer.Sources.PrescribedTemperature prescribedTemperature[n]
         annotation (Placement(transformation(extent={{-14,80},{6,100}})));
@@ -2696,16 +2696,10 @@
             extent={{-10,-10},{10,10}},
             rotation=0,
             origin={-126,62})));
-      Components.Sources.AirSource airSource2[n]
+      Components.Sources.AirSource airSource2[n](variable_v_flow=true)
         annotation (Placement(transformation(extent={{54,50},{74,70}})));
-    initial algorithm
-      for i in 1:n loop
-        if i == 4 or i == 5 then
-          airSource2[i].V_flow_const :=1.586;
-        else
-          airSource2[i].V_flow_const :=0;
-        end if;
-      end for;
+    initial equation
+
 
     //   for i in 1:2 loop
     //     airSource.V_flow_const =
@@ -2812,6 +2806,14 @@
     //       end for;
     //     end when;
     //   end for;
+
+      for i in 1:n loop
+        if i == 4 or i == 5 then
+          airSource2[i].v_flow = 1.85;
+        else
+          airSource2[i].v_flow = 0;
+        end if;
+      end for;
     algorithm
       for i in 1:n loop
         if triggeredSampler[i].trigger == true then
@@ -2865,11 +2867,6 @@
           points={{74,60},{78,60},{78,40},{2,40}},
           color={118,106,98},
           thickness=0.5));
-      annotation (experiment(
-          StopTime=3000,
-          Interval=0.005,
-          Tolerance=1e-05,
-          __Dymola_Algorithm="Cvode"));
     end Unnamed16;
 
     model Test2
@@ -2969,6 +2966,223 @@
     equation
       der(x) = if noEvent(x>=0) then -sqrt(x) else 0;
     end Decay2;
+
+    model Unnamed2
+      parameter Integer n=25;
+      parameter Integer n_units=1;
+      parameter Integer m=6;
+      parameter Real a[n]=linspace(
+          158.94,
+          40,
+          n);
+      parameter Real b[m]=ones(m)*413.15;
+      parameter Real c[n - m]=ones(n - m)*1773.15;
+      parameter Real d[n]=cat(
+          1,
+          b,
+          c);
+      //   parameter Real b[10] = linspace(67.6,13.6,10);
+      //   parameter Real c[20] = linspace(13.6,2.3,20);
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation[n](each Gr=0.9)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=90,
+            origin={28,64})));
+      Components.GasCombustion1 gasCombustion[n](
+        T(start=298.15),
+        v=2,
+        L=0.3,
+        H=1.9) annotation (Placement(transformation(extent={{-14,20},{6,40}})));
+      Components.CombineHeatTransfer combineHeatTransfer[n](each Gr=0.79, each Gr_n=0.672)
+        annotation (Placement(transformation(extent={{-40,-26},{-20,-6}})));
+      SubSystem.BedUnits bedUnits[n](
+        n_units=n_units,
+        L=0.3,
+        v=15/3600,
+        m_0=a,
+        T=323.15) annotation (Placement(transformation(extent={{-14,-66},{6,-46}})));
+      Components.Sources.AirSource airSource[n](
+        variable_v_flow=false,
+        V_flow_const=0.35,
+        T_const=293.15) annotation (Placement(transformation(extent={{-36,-100},{-16,-80}})));
+      Components.Sources.FuelSource fuelSource(
+        n=n_units,
+        variable_m_flow=true,
+        variable_T=false,
+        variable_components=false,
+        T_const(displayUnit="K") = 293.15,
+        components_const={0.149,0.6797,0.1423,0.029})
+        annotation (Placement(transformation(extent={{-66,-66},{-46,-46}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation rad_between_gas[n - 1](Gr=1.758)
+        annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=180,
+            origin={16,-16})));
+      Components.Sources.AirSource gas_airSource(V_flow_const=0)
+        annotation (Placement(transformation(extent={{76,20},{56,40}})));
+      Modelica.Blocks.Sources.Constant const(k=2.2075)
+        annotation (Placement(transformation(extent={{-156,-26},{-136,-6}})));
+      Modelica.Thermal.HeatTransfer.Sources.PrescribedTemperature prescribedTemperature[n]
+        annotation (Placement(transformation(extent={{-14,80},{6,100}})));
+      Components.n_heatTrans n_heatTrans[n - 1](
+        Gr=0.685,
+        G=7.4,
+        n=n_units) annotation (Placement(transformation(extent={{60,-66},{80,-46}})));
+      //   Modelica.Blocks.Discrete.TriggeredSampler triggeredSampler1(y_start=1373.15)
+      //                                                                            annotation (
+      //       Placement(transformation(
+      //         extent={{-10,-10},{10,10}},
+      //         rotation=0,
+      //         origin={-50,90})));
+      //   Modelica.Blocks.Sources.Constant const3(k=380)
+      //     annotation (Placement(transformation(extent={{-10,-10},{10,10}},
+      //         rotation=0,
+      //         origin={-94,90})));
+      Modelica.Blocks.Discrete.TriggeredSampler triggeredSampler[n](y_start=d)
+        annotation (Placement(transformation(extent={{-54,80},{-34,100}})));
+      Modelica.Blocks.Sources.Constant const1(k=413.15)
+        annotation (Placement(transformation(extent={{-102,80},{-82,100}})));
+      Components.Sources.AirSource gas_airSource1(V_flow_const=0)
+        annotation (Placement(transformation(extent={{70,-6},{50,14}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation3(Gr=10.134)
+        annotation (Placement(transformation(extent={{-138,18},{-118,38}})));
+      Modelica.Thermal.HeatTransfer.Sources.FixedTemperature fixedTemperature(T(displayUnit="K")=
+             413.15) annotation (Placement(transformation(extent={{-176,18},{-156,38}})));
+      Components.Sources.AirSource airSource2[n](variable_v_flow=true)
+        annotation (Placement(transformation(extent={{54,50},{74,70}})));
+      Components.GasCom_N_Port gasCom_N_Port(
+        n=6,                                 v=2,
+        L=1.8)
+        annotation (Placement(transformation(extent={{-88,18},{-68,38}})));
+      Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation1[m](Gr=0.2775)
+        annotation (Placement(transformation(extent={{-48,4},{-28,24}})));
+    equation
+      // 连接固定温度与气相
+      connect(gasCombustion.port_a, bodyRadiation.port_a);
+      connect(prescribedTemperature.port, bodyRadiation.port_b);
+      for i in 1:n loop
+        //       connect(prescribedTemperature.port, bodyRadiation[i].port_b);
+        connect(const1.y, triggeredSampler[i].u);
+      end for;
+
+      // 连接气相与固相
+      connect(gasCombustion.port_a, combineHeatTransfer.port_up);
+      connect(gasCombustion.Gc, combineHeatTransfer.Gc) "动态对流换热系数";
+      connect(bedUnits.port_up, combineHeatTransfer.port_down);
+
+      // 连接空气进口与床层
+      connect(bedUnits.flueGas_inlet, airSource.flueGas_outlet);
+
+      // 连接气固物质传递
+      connect(bedUnits.flueGas_outlet, gasCombustion.flueGas_inlet_down);
+      for i in m:(n - 1) loop
+        connect(gasCombustion[i].flueGas_inlet, gasCombustion[i + 1].flueGas_outlet);
+      end for;
+
+      for i in 1:(n - 1) loop
+        // 气相物质传递相互连接
+        //     connect(gasCombustion[i].flueGas_inlet, gasCombustion[i+1].flueGas_outlet);
+
+        // 固相物质传递相互连接
+        connect(bedUnits[i].fuel_outlet, bedUnits[i + 1].fuel_inlet);
+
+        // 气相之间辐射换热
+        connect(gasCombustion[i].port_a, rad_between_gas[i].port_a);
+        connect(gasCombustion[i + 1].port_a, rad_between_gas[i].port_b);
+
+        // 气相与相邻固相之间辐射换热
+        connect(combineHeatTransfer[i].port_right, bedUnits[i + 1].port_up);
+        connect(combineHeatTransfer[i + 1].port_left, bedUnits[i].port_up);
+
+        // 固相之间辐射传热
+        connect(bedUnits[i].port_right, n_heatTrans[i].port_a);
+        connect(bedUnits[i + 1].port_left, n_heatTrans[i].port_b);
+      end for;
+
+
+      // 燃料进口
+      connect(fuelSource.fuel_outlet, bedUnits[1].fuel_inlet);
+
+    //   connect(gas_airSource.flueGas_outlet, gasCombustion[n].flueGas_inlet);
+
+
+      connect(const.y, fuelSource.m_flow) annotation (Line(points={{-135,-16},{-72,-16},{-72,-50},
+              {-66,-50}}, color={0,0,127}));
+
+      for i in 1:n loop
+        if i == 9 or i == 10 then
+          airSource2[i].v_flow = 1.85;
+        else
+          airSource2[i].v_flow = 0;
+        end if;
+      end for;
+    algorithm
+      for i in 1:n loop
+        if triggeredSampler[i].trigger == true then
+          break;
+        end if;
+        if gasCombustion[i].T >= 2000 then
+          //       prescribedTemperature.T := 380;
+          for i in 1:n loop
+            triggeredSampler[i].trigger := true;
+          end for;
+          break;
+          //     elseif gasCombustion[i].T <= 573.15 then
+          //       prescribedTemperature.T := 1500;
+          //       break;
+        end if;
+      end for;
+    equation
+      connect(triggeredSampler.y, prescribedTemperature.T)
+        annotation (Line(points={{-33,90},{-16,90}}, color={0,0,127}));
+      connect(fixedTemperature.port, bodyRadiation3.port_a)
+        annotation (Line(points={{-156,28},{-138,28}}, color={191,0,0}));
+      connect(airSource2.flueGas_outlet, gasCombustion.sa) annotation (Line(
+          points={{74,60},{78,60},{78,40},{2,40}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(bodyRadiation3.port_b, gasCom_N_Port.port_a)
+        annotation (Line(points={{-118,28},{-102,28},{-102,18},{-78,18}}, color={191,0,0}));
+        for i in 1:m loop
+          connect(gasCom_N_Port.flueGas_inlet[i], gasCombustion[i].flueGas_outlet);
+          connect(gasCom_N_Port.port_a, bodyRadiation1[i].port_a);
+          connect(gasCombustion[i].port_a,  bodyRadiation1[i].port_b);
+        end for;
+        for i in 1:m-1 loop
+          connect(gas_airSource1.flueGas_outlet, gasCombustion[i].flueGas_inlet);
+        end for;
+
+      connect(gas_airSource.flueGas_outlet, gasCombustion[n].flueGas_inlet) annotation (Line(
+          points={{56,30},{6.2,30}},
+          color={118,106,98},
+          thickness=0.5));
+      annotation (experiment(
+          Interval=0.008,
+          Tolerance=1e-05,
+          __Dymola_Algorithm="Cvode"));
+    end Unnamed2;
+
+    model Unnamed5
+      Components.GasCom_N_Port gasCom_N_Port(
+        n=2,
+        v=1,
+        L=0.5) annotation (Placement(transformation(extent={{-32,-8},{-12,12}})));
+      Components.Sources.AirSource airSource(V_flow_const=1, components_const={0.8,0.2})
+        annotation (Placement(transformation(extent={{-16,-40},{4,-20}})));
+      Components.Sources.AirSource airSource1(V_flow_const=1, components_const={0.2,0.8})
+        annotation (Placement(transformation(extent={{-22,34},{-2,54}})));
+    equation
+      connect(airSource1.flueGas_outlet, gasCom_N_Port.flueGas_inlet[1]) annotation (Line(
+          points={{-2,44},{4,44},{4,1.75},{-11.8,1.75}},
+          color={118,106,98},
+          thickness=0.5));
+      connect(airSource.flueGas_outlet, gasCom_N_Port.flueGas_inlet[2]) annotation (Line(
+          points={{4,-30},{8,-30},{8,2.25},{-11.8,2.25}},
+          color={118,106,98},
+          thickness=0.5));
+      annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
+            coordinateSystem(preserveAspectRatio=false)));
+    end Unnamed5;
   end Test;
 
   package Components
@@ -4312,7 +4526,7 @@
           "True, if composition defined by variable input"
           annotation (Dialog(group="Define Variable Boundaries"));
 
-        parameter Modelica.Units.SI.VolumeFlowRate V_flow_const=0.108
+        parameter Modelica.Units.SI.VolumeFlowRate V_flow_const = 0
           "Constant volume flow rate"
           annotation (Dialog(group="Constant Boundaries", enable=not variable_m_flow));
         parameter Temperature T_const=293.15 "Constant specific temperature of source"
@@ -4555,17 +4769,17 @@
       import BiomassBoiler.Units.Rate;
       import BiomassBoiler.Units.MolarReactionRate;
 
-    protected
-      constant Real eps = 1e-5;
-      constant GasSpecies CO=GasSpecies.CO;
-      constant GasSpecies O2=GasSpecies.O2;
-      constant GasSpecies H2=GasSpecies.H2;
-      constant GasSpecies CH4=GasSpecies.CH4;
-      constant GasSpecies C2H6=GasSpecies.C2H6;
-      constant GasSpecies CO2=GasSpecies.CO2;
-      constant GasSpecies H2O=GasSpecies.H2O;
-      constant GasSpecies N2=GasSpecies.N2;
+    //   constant Real eps = 1e-5;
+    //   constant GasSpecies CO=GasSpecies.CO;
+    //   constant GasSpecies O2=GasSpecies.O2;
+    //   constant GasSpecies H2=GasSpecies.H2;
+    //   constant GasSpecies CH4=GasSpecies.CH4;
+    //   constant GasSpecies C2H6=GasSpecies.C2H6;
+    //   constant GasSpecies CO2=GasSpecies.CO2;
+    //   constant GasSpecies H2O=GasSpecies.H2O;
+    //   constant GasSpecies N2=GasSpecies.N2;
 
+    protected
       constant Real h_CO(unit="J/mol") = 283000 "标准摩尔反应焓";
       constant Real h_H2(unit="J/mol") = 241800 "标准摩尔反应焓";
       constant Real h_CH4(unit="J/mol") = 519500 "标准摩尔反应焓";
@@ -4775,14 +4989,14 @@
       SI.SpecificHeatCapacity cp_in "进口燃料比热容";
       SI.SpecificHeatCapacity cp_out "出口燃料比热容";
 
-      constant GasSpecies CO = GasSpecies.CO;
-      constant GasSpecies O2 = GasSpecies.O2;
-      constant GasSpecies H2 = GasSpecies.H2;
-      constant GasSpecies CH4 = GasSpecies.CH4;
-      constant GasSpecies C2H6 = GasSpecies.C2H6;
-      constant GasSpecies CO2 = GasSpecies.CO2;
-      constant GasSpecies H2O = GasSpecies.H2O;
-      constant GasSpecies N2 = GasSpecies.N2;
+    //   constant GasSpecies CO = GasSpecies.CO;
+    //   constant GasSpecies O2 = GasSpecies.O2;
+    //   constant GasSpecies H2 = GasSpecies.H2;
+    //   constant GasSpecies CH4 = GasSpecies.CH4;
+    //   constant GasSpecies C2H6 = GasSpecies.C2H6;
+    //   constant GasSpecies CO2 = GasSpecies.CO2;
+    //   constant GasSpecies H2O = GasSpecies.H2O;
+    //   constant GasSpecies N2 = GasSpecies.N2;
 
       constant Real h_CO(unit = "J/mol") = 283000 "标准摩尔反应焓";
       constant Real h_H2(unit = "J/mol") = 241800 "标准摩尔反应焓";
@@ -4966,6 +5180,103 @@
       R_C2H6 = reaction7.R;
 
     end BedReaction;
+
+    model GasCom_N_Port
+      extends GasReaction;
+      import Modelica.Units.SI;
+      import BiomassBoiler.Basics.GasSpecies;
+      import BiomassBoiler.Units.Rate;
+      import BiomassBoiler.Units.MolarReactionRate;
+
+    protected
+      constant Real h_CO(unit="J/mol") = 283000 "标准摩尔反应焓";
+      constant Real h_H2(unit="J/mol") = 241800 "标准摩尔反应焓";
+      constant Real h_CH4(unit="J/mol") = 519500 "标准摩尔反应焓";
+      constant Real h_C2H6(unit="J/mol") = 862400 "标准摩尔反应焓";
+
+      constant SI.MolarMass molarMass[GasSpecies] = {0.02801,0.032,0.002016,0.016042,0.030068,0.04401,0.018016,0.02801};
+
+    public
+      parameter Integer n = 2;
+      SI.Temperature T(start=693.15);
+      parameter SI.Velocity v "风速";
+      parameter SI.Length L;
+      parameter SI.Length W = 3.7;
+      parameter SI.Height H = 2;
+      parameter SI.Volume V=L*W*H "控制体体积";
+      parameter Real tau=L/v;
+      parameter Real p = 1.0133e5;
+      SI.MassFraction massFractions[GasSpecies](each start=0) "气体的质量分数";
+      SI.MoleFraction moleFractions[GasSpecies](each start=0);
+      SI.AmountOfSubstance aos[GasSpecies](fixed=true,start={0,0.9,0,0,0,0,0,3.5}*V,min=0) "体积内物质的量";
+      SI.MolarFlowRate molar_g_in[GasSpecies](min=0);
+      SI.MolarFlowRate molar_g_out[GasSpecies];
+      SI.HeatFlowRate Q_combustion;
+      Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a
+        annotation (Placement(transformation(extent={{-10,-110},{10,-90}})));
+      SI.Mass m "体积内气体质量";
+      SI.HeatFlowRate Q_flueGas_in;
+      Basics.Interfaces.FlueGas_outlet flueGas_outlet
+        annotation (Placement(transformation(extent={{-108,-10},{-88,10}})));
+      Basics.Interfaces.FlueGas_inlet flueGas_inlet[n]
+        annotation (Placement(transformation(extent={{92,-10},{112,10}})));
+      BiomassBoiler.Components.FlueGasObject flueGasObject;
+      Real Nu;
+      Real Re;
+      Real h_conv;
+      Modelica.Blocks.Interfaces.RealOutput Gc annotation (Placement(transformation(
+            extent={{-10,-10},{10,10}},
+            rotation=270,
+            origin={-60,-106})));
+    equation
+
+      // 将接口质量流量变为摩尔流量
+      molar_g_in = flueGas_inlet.m_flow*flueGas_inlet.composition ./ molarMass;
+
+      // 出口烟气
+      flueGas_outlet.T = T;
+      flueGas_outlet.composition = massFractions;
+      flueGas_outlet.m_flow = molar_g_out * molarMass;
+      flueGas_outlet.cp = flueGasObject.cp;
+      flueGas_outlet.rho = flueGasObject.rho;
+
+      // 气体浓度与量
+      //   solution.C = aos / V;
+      solution.mixture.C = aos / V;
+      molar_g_out = aos / tau;
+      solution.gas_in = molar_g_in / V;
+      solution.gas_out = solution.mixture.C / tau;
+      solution.mixture.T = T;
+
+
+      // 控制体内的一些属性
+      m = aos*molarMass;
+      massFractions*m = aos.*molarMass;
+      moleFractions*sum(aos) = aos;
+      flueGasObject.T = T;
+      flueGasObject.p = p;
+      flueGasObject.X = massFractions;
+
+      // 热流接口
+      port_a.T = T;
+
+      // 气体燃烧放热
+      Q_combustion = (R_CO*h_CO + R_H2*h_H2 + R_CH4*h_CH4 + R_C2H6*h_C2H6)*V;
+      // 进入气体热
+      Q_flueGas_in = sum(flueGas_inlet[i].cp*flueGas_inlet[i].m_flow*(flueGas_inlet[i].T - T) for i in 1:n);
+
+
+      // 能量平衡
+    //   Q = Q_flueGas_in + Q_combustion + port_a.Q_flow;
+      der(T)*flueGasObject.cp*m = Q_flueGas_in + Q_combustion + port_a.Q_flow;
+
+      // 常数计算
+      Re = flueGasObject.rho*v*L/flueGasObject.mu;
+      Nu = 2+1.1*Re^0.6*flueGasObject.pr^0.333;
+      h_conv = Nu*flueGasObject.thermalConductivity/L;
+      Gc = h_conv*W*L;
+
+    end GasCom_N_Port;
   end Components;
 
   package SubSystem
@@ -5044,7 +5355,7 @@
     model BedUnits
       import Modelica.Units.SI;
 
-      parameter Integer n_units = 4;
+      parameter Integer n_units = 1;
       parameter SI.Length L = 0.5 "炉排单元长度";
       Real tau = L/v;
       parameter SI.Velocity v = 15/3600 "炉排速度";
@@ -5064,12 +5375,12 @@
         annotation (Placement(transformation(extent={{-10,88},{10,108}})));
       Components.BedCombustion2 bedCombustion[n_units](each T(start=T),each m_0 = m_0, each v = v,each length = L, each m_sj(start = m_0*mf_init))
         annotation (Placement(transformation(extent={{-10,20},{10,40}})));
-      BiomassBoiler.Components.ThermalConductor thermalConductor[n_units-1]
-        annotation (Placement(transformation(
-            extent={{-10,-10},{10,10}},
-            rotation=270,
-            origin={0,-16})));
-    //   Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation[n_units-1](Gr=L*3.7)
+    //   BiomassBoiler.Components.ThermalConductor thermalConductor[n_units-1]
+    //     annotation (Placement(transformation(
+    //         extent={{-10,-10},{10,10}},
+    //         rotation=270,
+    //         origin={0,-16})));
+    //   Modelica.Thermal.HeatTransfer.Components.BodyRadiation bodyRadiation[n_units-1](Gr=L*3.7/2.67)
     //     annotation (Placement(transformation(extent={{32,-26},{52,-6}})));
       Basics.Interfaces.FlueGas_inlet flueGas_inlet "流入烟气"
         annotation (Placement(transformation(extent={{50,-110},{70,-90}})));
@@ -5086,9 +5397,9 @@
         annotation (Placement(transformation(extent={{-110,-30},{-90,-10}})));
       Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_right[n_units]
         annotation (Placement(transformation(extent={{92,-30},{112,-10}})));
-      SI.ThermalConductivity k_cond[n_units-1];
-      SI.ThermalConductivity k_rad[n_units-1];
-      SI.ThermalConductivity k_eff[n_units-1];
+    //   SI.ThermalConductivity k_cond[n_units-1];
+    //   SI.ThermalConductivity k_rad[n_units-1];
+    //   SI.ThermalConductivity k_eff[n_units-1];
 
     equation
       // 接口连接
@@ -5097,24 +5408,24 @@
       connect(bedCombustion[1].flueGas_outlet,flueGas_outlet);
       connect(bedCombustion[n_units].flueGas_inlet,flueGas_inlet);
 
-      for i in 1:n_units-1 loop
-        // 热导
-        connect(bedCombustion[i].port_down, thermalConductor[i].port_a);
-        connect(bedCombustion[i+1].port_up, thermalConductor[i].port_b);
-        // 热辐射
+    //   for i in 1:n_units-1 loop
+    //     // 热导
+    //     connect(bedCombustion[i].port_down, thermalConductor[i].port_a);
+    //     connect(bedCombustion[i+1].port_up, thermalConductor[i].port_b);
+    //     // 热辐射
     //     connect(bedCombustion[i].port_down, bodyRadiation[i].port_a);
     //     connect(bedCombustion[i+1].port_up, bodyRadiation[i].port_b);
-        // 烟气
-        connect(bedCombustion[i].flueGas_inlet, bedCombustion[i+1].flueGas_outlet);
-        // 有效导热系数
-        k_cond[i] = bedCombustion[i].mf * {0.58,0.2,0.1,0.2};
-        k_rad[i] = 4*Modelica.Constants.sigma*bedCombustion[i].dp*bedCombustion[i].T^3;
+    //     // 烟气
+    //     connect(bedCombustion[i].flueGas_inlet, bedCombustion[i+1].flueGas_outlet);
+    //     // 有效导热系数
+    //     k_cond[i] = bedCombustion[i].mf * {0.58,0.2,0.1,0.2};
+    //     k_rad[i] = 4*Modelica.Constants.sigma*bedCombustion[i].dp*bedCombustion[i].T^3;
     //     k_eff[i] = (1-bedCombustion[i].epsilon)*k_cond[i] + bedCombustion[i].epsilon*bedCombustion[i].flueGasObject.thermalConductivity;
-    //     thermalConductor[i].G = 3.7*L*k_eff[i]/bedCombustion[i].bedHeight;
-        k_eff[i] = (1-bedCombustion[i].epsilon)*k_cond[i] + bedCombustion[i].epsilon*k_rad[i]/(1-bedCombustion[i].epsilon) +
-        bedCombustion[i].epsilon*bedCombustion[i].flueGasObject.thermalConductivity;
-        thermalConductor[i].G = 3.7*L*k_eff[i]/bedCombustion[i].dp;
-      end for;
+    //
+    //     k_eff[i] = (1-bedCombustion[i].epsilon)*k_cond[i] + bedCombustion[i].epsilon*k_rad[i]/(1-bedCombustion[i].epsilon) +
+    //     bedCombustion[i].epsilon*bedCombustion[i].flueGasObject.thermalConductivity;
+    //     thermalConductor[i].G = 3.7*L*k_eff[i]/bedCombustion[i].dp;
+    //   end for;
       // 燃料
       connect(bedCombustion.fuel_in, fuel_inlet);
       connect(bedCombustion.fuel_out, fuel_outlet);
@@ -5537,7 +5848,7 @@
           constant Modelica.Units.SI.MolarMass molarMass[GasSpecies] = {0.02801,0.032,0.002016,0.016042,0.030068,0.04401,0.018016,0.02801};
 
         equation
-          // k = ArrheniusEquation(7e7, 126697, mixture.T);
+        // k = ArrheniusEquation(7e7, 126697, mixture.T);
         //   k = ArrheniusEquation(1.4e10, 150000, mixture.T);
           k = ArrheniusEquation(1.5, 20500, mixture.T);
         // k = ArrheniusEquation(5.16e6, 10700*8.314, mixture.T);
@@ -5624,6 +5935,7 @@
         //   else
         //     R = min(R_mix, k*C[BedSpecies.CO]*C[BedSpecies.O2]^0.5*C[BedSpecies.H2O]^0.5);
             R = k*C[BedSpecies.CO]*C[BedSpecies.O2]^0.5*C[BedSpecies.H2O]^0.5;
+        //   R = 0;
         //   end if;
 
           consumed[BedSpecies.Water] = 0;
@@ -5663,6 +5975,7 @@
         //   else
         //     R = min(R_mix, k*C[BedSpecies.H2]^1.5*C[BedSpecies.O2]);
             R = k*C[BedSpecies.H2]^1.5*C[BedSpecies.O2];
+        //   R = 0;
         //   end if;
 
           consumed[BedSpecies.Water] = 0;
@@ -5700,6 +6013,7 @@
         //   else
         //     R = min(R_mix, k*C[BedSpecies.CH4]^0.7*C[BedSpecies.O2]^0.8);
           R = k*C[BedSpecies.CH4]^0.7*C[BedSpecies.O2]^0.8;
+        //   R = 0;
         //   end if;
 
           consumed[BedSpecies.Water] = 0;
@@ -5737,6 +6051,7 @@
         //   else
         //     R =min(R_mix, k*C[BedSpecies.C2H6]*C[BedSpecies.O2]);
             R =k*C[BedSpecies.C2H6]*C[BedSpecies.O2];
+        //     R = 0;
         //   end if;
 
           consumed[BedSpecies.Water] = 0;
